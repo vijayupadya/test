@@ -17,7 +17,7 @@ jobs:
     - name: Checkout public repository
       uses: actions/checkout@v4
       with:
-        repository: https://github.com/microsoft/sample-app-aoai-chatGPT
+        repository: microsoft/sample-app-aoai-chatGPT
         
     - name: Use Node.js ${{ matrix.node-version }}
       uses: actions/setup-node@v3

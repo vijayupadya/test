@@ -21,19 +21,15 @@ jobs:
     - uses: actions/checkout@v4
       with:
         repository: psf/requests        
-    - name: Check if patch input is provided
-      id: check_patch
-      run: |
-         if [ -z "${{ github.event.inputs.patch }}" ]; then
-            echo "patch_provided=false" >> $GITHUB_ENV
-          else
-            echo "patch_provided=true" >> $GITHUB_ENV
-          fi
     - name: Decode and apply patch
-      if: env.patch_provided == 'true'
       run: |
-          echo "${{ github.event.inputs.patch }}" | base64 --decode > patch.diff
-          git apply patch.diff
+          if [ -n "${{ github.event.inputs.patch }}" ]; then
+            echo "Patch input provided. Applying patch..."
+            echo "${{ github.event.inputs.patch }}" | base64 --decode > patch.diff
+            git apply patch.diff
+          else
+            echo "No patch input provided. Skipping patch application."
+          fi
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v5
       with:

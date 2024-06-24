@@ -30,8 +30,12 @@ jobs:
             cat patch.diff  # Display the patch content for debugging
             git apply patch.diff || {
               echo "Failed to apply patch"
+              git apply --check patch.diff || {
+                echo "Patch does not apply cleanly. Showing patch check results:"
+                git apply --check patch.diff --verbose
+              }
               exit 1
-            }            
+            } 
           else
             echo "No patch input provided. Skipping patch application."
           fi

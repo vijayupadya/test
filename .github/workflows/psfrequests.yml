@@ -26,7 +26,12 @@ jobs:
           if [ -n "${{ github.event.inputs.patch }}" ]; then
             echo "Patch input provided. Applying patch..."
             echo "${{ github.event.inputs.patch }}" | base64 --decode > patch.diff
-            git apply patch.diff
+            echo "Decoded patch content:"
+            cat patch.diff  # Display the patch content for debugging
+            git apply patch.diff || {
+              echo "Failed to apply patch"
+              exit 1
+            }            
           else
             echo "No patch input provided. Skipping patch application."
           fi

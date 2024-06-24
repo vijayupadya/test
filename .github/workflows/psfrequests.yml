@@ -2,6 +2,11 @@ name: swebench-psf-requests
 
 on:
    workflow_dispatch:
+    inputs:
+      patch:
+        description: 'Base64 encoded patch file'
+        required: false
+        default: ''
 
 jobs:
   build:
@@ -17,7 +22,20 @@ jobs:
     steps:
     - uses: actions/checkout@v4
       with:
-        repository: psf/requests
+        repository: psf/requests        
+    - name: Check if patch input is provided
+      id: check_patch
+      run: |
+         if [ -z "${{ github.event.inputs.patch }}" ]; then
+            echo "patch_provided=false" >> $GITHUB_ENV
+          else
+            echo "patch_provided=true" >> $GITHUB_ENV
+          fi
+    - name: Decode and apply patch
+      if: env.patch_provided == 'true'
+      run: |
+          echo "${{ github.event.inputs.patch }}" | base64 --decode > patch.diff
+          git apply patch.diff
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v5
       with:

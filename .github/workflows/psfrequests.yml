@@ -25,7 +25,7 @@ jobs:
       run: |
           if [ -n "${{ github.event.inputs.patch }}" ]; then
             echo "Patch input provided. Applying patch..."
-            echo "${{ github.event.inputs.patch }}" | base64 --decode | sed 's/\r$//' > patch.diff           
+            echo "${{ github.event.inputs.patch }}" | base64 --decode | sed -i 's/\r$//' > patch.diff           
             echo "Decoded patch content:"
             cat patch.diff  # Display the patch content for debugging
             # Check the patch without applying it and capture the output

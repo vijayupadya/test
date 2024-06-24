@@ -25,18 +25,9 @@ jobs:
       run: |
           if [ -n "${{ github.event.inputs.patch }}" ]; then
             echo "Patch input provided. Applying patch..."
-            echo "${{ github.event.inputs.patch }}" | base64 --decode | sed 's/\r$//' 
-             echo "Creating patch file..."
             echo "${{ github.event.inputs.patch }}" | base64 --decode | sed 's/\r$//'  > patch.diff           
             echo "Decoded patch content:"
             cat patch.diff  # Display the patch content for debugging
-            # Check the patch without applying it and capture the output
-            git apply --check patch.diff --verbose 2>&1 || {
-              echo "Patch does not apply cleanly. Showing patch check results:"
-              git apply --check patch.diff --verbose 2>&1
-              exit 1
-            }
-
             # Apply the patch
             git apply patch.diff || {
               echo "Failed to apply patch"
@@ -45,6 +36,8 @@ jobs:
           else
             echo "No patch input provided. Skipping patch application."
           fi
+          echo "Print git diff on local repo"
+          echo git diff
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v5
       with:

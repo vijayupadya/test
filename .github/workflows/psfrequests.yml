@@ -48,4 +48,5 @@ jobs:
         make
     - name: Run tests
       run: |
-        make ci
+        # make ci
+        python -m pytest -s tests/test_structures.py

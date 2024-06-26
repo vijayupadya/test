@@ -61,4 +61,4 @@ jobs:
           echo "Running built in tests"
           python -m pytest -s tests/test_structures.py
         fi
-        echo "Done!"
+        echo "Workflow execution done!"

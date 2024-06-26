@@ -4,7 +4,11 @@ on:
    workflow_dispatch:
     inputs:
       patch:
-        description: 'Base64 encoded patch file'
+        description: 'Base64 encoded patch content'
+        required: false
+        default: ''
+      script:
+        description: 'Base64 encoded script content'
         required: false
         default: ''
 
@@ -49,4 +53,12 @@ jobs:
     - name: Run tests
       run: |
         # make ci
-        python -m pytest -s tests/test_structures.py
+        if [ -n "${{ github.event.inputs.script }}" ]; then
+           echo "Running custom script input"
+           echo "${{ github.event.inputs.script }}"
+           "${{ github.event.inputs.script }}"
+        else
+          echo "Running built in tests"
+          python -m pytest -s tests/test_structures.py
+        fi
+        echo "Done!"

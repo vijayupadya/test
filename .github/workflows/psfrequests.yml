@@ -60,7 +60,7 @@ jobs:
            echo "decoded custom script"   
            echo $output
            echo "run"   
-           output
+           $output
         else
           echo "Running built in tests"
           python -m pytest -s tests/test_structures.py

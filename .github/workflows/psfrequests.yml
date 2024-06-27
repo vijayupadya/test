@@ -59,7 +59,7 @@ jobs:
            output=$(echo "${{ github.event.inputs.command }}" | base64 --decode | sed 's/\r$//')
            echo "decoded custom command"   
            echo $output
-           echo "running command"   
+           echo "command output:"   
            $output
         else
           echo "Running built in tests"

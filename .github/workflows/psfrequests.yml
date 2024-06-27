@@ -54,9 +54,13 @@ jobs:
       run: |
         # make ci
         if [ -n "${{ github.event.inputs.script }}" ]; then
-           echo "Running custom script input"
+           echo "Starting running custom script input"         
            echo "${{ github.event.inputs.script }}"
-           "${{ github.event.inputs.script }}"
+           output=$(echo "${{ github.event.inputs.script }}" | base64 --decode | sed 's/\r$//')
+           echo "decoded custom script"   
+           echo $output
+           echo "run"   
+           output
         else
           echo "Running built in tests"
           python -m pytest -s tests/test_structures.py

@@ -7,8 +7,8 @@ on:
         description: 'Base64 encoded patch content'
         required: false
         default: ''
-      script:
-        description: 'Base64 encoded script content'
+      command:
+        description: 'Base64 encoded command content'
         required: false
         default: ''
 
@@ -53,13 +53,13 @@ jobs:
     - name: Run tests
       run: |
         # make ci
-        if [ -n "${{ github.event.inputs.script }}" ]; then
-           echo "Starting running custom script input"         
-           echo "${{ github.event.inputs.script }}"
-           output=$(echo "${{ github.event.inputs.script }}" | base64 --decode | sed 's/\r$//')
-           echo "decoded custom script"   
+        if [ -n "${{ github.event.inputs.command }}" ]; then
+           echo "Starting running custom command input"         
+           echo "${{ github.event.inputs.command }}"
+           output=$(echo "${{ github.event.inputs.command }}" | base64 --decode | sed 's/\r$//')
+           echo "decoded custom command"   
            echo $output
-           echo "run"   
+           echo "running command"   
            $output
         else
           echo "Running built in tests"

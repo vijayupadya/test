@@ -51,18 +51,17 @@ jobs:
       run: |
         make
     - name: Run tests
-      run: |
-        # make ci
+      run: |       
         if [ -n "${{ github.event.inputs.command }}" ]; then
-           echo "Starting running custom command input"         
+           echo "Start running custom command"         
            echo "${{ github.event.inputs.command }}"
            output=$(echo "${{ github.event.inputs.command }}" | base64 --decode | sed 's/\r$//')
-           echo "decoded custom command"   
+           echo "Decoded custom command is:"   
            echo $output
-           echo "command output:"   
+           echo "Command output:"   
            $output
         else
           echo "Running built in tests"
-          python -m pytest -s tests/test_structures.py
+          make ci
         fi
         echo "Workflow execution done!"

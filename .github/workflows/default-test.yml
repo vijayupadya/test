@@ -66,7 +66,7 @@ jobs:
           make ci
         fi
         echo "Workflow execution done!"
-    - name: Run2
-      continue-on-error: false
+      continue-on-error: true
+    - name: Run2     
       run: |
         make

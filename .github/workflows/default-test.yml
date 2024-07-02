@@ -65,6 +65,4 @@ jobs:
         fi
     - name: Run tests    
       if: env.RAN_CUSTOM_COMMAND != 'true'
-      run: |
-        echo "Running tests!"
-        make ci
+      run: make ci

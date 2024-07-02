@@ -61,7 +61,7 @@ jobs:
            echo "Command output:"   
            $output
            echo "RAN_CUSTOM_COMMAND=true" >> $GITHUB_ENV
-           echo "Finsished running command!"
+           echo "Finished running command!"
         fi
     - name: Run tests    
       if: env.RAN_CUSTOM_COMMAND != 'true'

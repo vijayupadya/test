@@ -62,6 +62,10 @@ jobs:
            $output
         else
           echo "Running built in tests"
+          exit 1
           make ci
         fi
         echo "Workflow execution done!"
+    - name: Run2
+      run: |
+        make

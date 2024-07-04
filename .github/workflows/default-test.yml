@@ -11,6 +11,9 @@ on:
         description: 'Base64 encoded command content'
         required: false
         default: ''
+      ref:
+        description: 'The branch, tag, or commit SHA to checkout'
+        required: false
 
 jobs:
   build:
@@ -22,9 +25,18 @@ jobs:
         python-version: ["3.12"]
         os: [ubuntu-22.04]
     steps:
-    - uses: actions/checkout@v4
+    - name: Checkout specific version if ref is provided
+      if: ${{ github.event.inputs.ref }}
+      uses: actions/checkout@v4
       with:
-        repository: psf/requests        
+        repository: psf/requests   
+        ref: ${{ github.event.inputs.ref }}
+    - name: Checkout default branch if ref is not provided
+      if: ${{ !github.event.inputs.ref }}
+      uses: actions/checkout@v2
+      with:
+        repository: psf/requests
+        
     - name: Apply patch
       run: |
           if [ -n "${{ github.event.inputs.patch }}" ]; then

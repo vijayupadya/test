@@ -33,7 +33,7 @@ jobs:
         ref: ${{ github.event.inputs.ref }}
     - name: Checkout default branch if ref is not provided
       if: ${{ !github.event.inputs.ref }}
-      uses: actions/checkout@v2
+      uses: actions/checkout@v4
       with:
         repository: psf/requests
         

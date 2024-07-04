@@ -36,7 +36,15 @@ jobs:
       uses: actions/checkout@v4
       with:
         repository: psf/requests
-        
+       
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+        cache: 'pip'
+    - name: Install dependencies
+      run: |
+        make        
     - name: Apply patch
       shell: bash
       run: |
@@ -55,14 +63,6 @@ jobs:
           fi
           echo "Print git diff on local repo"
           git diff
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v5
-      with:
-        python-version: ${{ matrix.python-version }}
-        cache: 'pip'
-    - name: Install dependencies
-      run: |
-        make
     - name: Run custom command
       shell: bash
       run: |       

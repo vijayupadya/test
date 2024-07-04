@@ -38,6 +38,7 @@ jobs:
         repository: psf/requests
         
     - name: Apply patch
+      shell: bash
       run: |
           if [ -n "${{ github.event.inputs.patch }}" ]; then
             echo "Patch input provided. Applying patch..."
@@ -63,6 +64,7 @@ jobs:
       run: |
         make
     - name: Run custom command
+      shell: bash
       run: |       
         if [ -n "${{ github.event.inputs.command }}" ]; then
            echo "Start running custom command"         

@@ -77,6 +77,14 @@ jobs:
            echo "RAN_CUSTOM_COMMAND=true" >> $GITHUB_ENV
            echo "Finished running command!"
         fi
+    - name: Temp step
+      run: |         
+           echo "temp job"
+    - name: Step to exit
+      if: env.RAN_CUSTOM_COMMAND != 'true'
+      run: |         
+           echo "Exiting job"
+           exit 1         
     - name: Run tests    
       if: env.RAN_CUSTOM_COMMAND != 'true'
       run: make ci

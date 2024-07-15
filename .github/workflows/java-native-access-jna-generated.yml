@@ -1,0 +1,72 @@
+name: java-native-access/jna
+on:
+  workflow_dispatch:
+    inputs:
+      repoName:
+        description: Name of the repo
+        required: false
+      patch:
+        description: Base64 encoded patch content
+        required: false
+      command:
+        description: Command to run
+        required: false
+      ref:
+        description: The repo branch, tag, or commit SHA to checkout
+        required: false
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        java:
+        - 8
+        - 11
+        - 17
+        - 21
+        - 23-ea
+        os:
+        - ubuntu-latest
+        - macos-13
+        - macos-latest
+        exclude:
+        - java: 23-ea
+          os: macos-latest
+      fail-fast: false
+    name: Test JDK ${{ matrix.java }}, ${{ matrix.os }}
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        repository: ${{ github.event.inputs.repoName }}
+        ref: ${{ github.event.inputs.ref }}
+    - name: Set up JDK
+      uses: actions/setup-java@v4
+      with:
+        java-version: ${{ matrix.java }}
+        distribution: zulu
+    - name: Linux requirements
+      if: contains(matrix.os, 'ubuntu')
+      run: sudo apt-get -y install texinfo
+    - name: macOS requirements
+      if: contains(matrix.os, 'macos')
+      run: |
+        brew update
+
+        brew install automake --force
+
+        brew install libtool --force
+
+        brew install texinfo --force
+    - name: Checkstyle
+      if: contains(matrix.os, 'ubuntu') && contains(matrix.java, '8')
+      run: |
+        ant checkstyle
+
+        ant dist
+    - name: Build with Ant
+      run: |
+        ant test
+
+        ant test-platform

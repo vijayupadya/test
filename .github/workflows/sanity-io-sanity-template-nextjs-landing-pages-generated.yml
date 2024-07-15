@@ -1,0 +1,63 @@
+name: sanity-io/sanity-template-nextjs-landing-pages
+env:
+  VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+  VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+on:
+  workflow_dispatch:
+    inputs:
+      repoName:
+        description: Name of the repo
+        required: false
+      patch:
+        description: Base64 encoded patch content
+        required: false
+      command:
+        description: Command to run
+        required: false
+      ref:
+        description: The repo branch, tag, or commit SHA to checkout
+        required: false
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+jobs:
+  next:
+    name: Next.js
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b
+      with:
+        repository: ${{ github.event.inputs.repoName }}
+        ref: ${{ github.event.inputs.ref }}
+    - uses: actions/setup-node@2fddd8803e2f5c9604345a0b591c3020ee971a93
+      with:
+        node-version: lts/*
+        cache: npm
+    - run: npm i -g vercel@latest
+    - run: vercel env pull --token=${{ secrets.VERCEL_TOKEN }}
+    - run: npm ci --ignore-scripts
+    - run: npm run build:web
+    - run: npm run lint --if-present
+    - run: npm run test --if-present
+  studio:
+    name: Studio
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./studio
+    steps:
+    - uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b
+      with:
+        repository: ${{ github.event.inputs.repoName }}
+        ref: ${{ github.event.inputs.ref }}
+    - uses: actions/setup-node@2fddd8803e2f5c9604345a0b591c3020ee971a93
+      with:
+        node-version: lts/*
+        cache: yarn
+        cache-dependency-path: studio/yarn.lock
+    - run: yarn global add vercel
+    - run: vercel env pull .env.development --token=${{ secrets.VERCEL_TOKEN }}
+    - run: yarn install --frozen-lockfile
+    - run: npm run build --if-present
+    - run: npm run lint --if-present
+    - run: npm run test --if-present

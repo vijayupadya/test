@@ -1,0 +1,72 @@
+name: xugaoyi/vuepress-theme-vdoing
+on:
+  workflow_dispatch:
+    inputs:
+      repoName:
+        description: Name of the repo
+        required: false
+      patch:
+        description: Base64 encoded patch content
+        required: false
+      command:
+        description: Command to run
+        required: false
+      ref:
+        description: The repo branch, tag, or commit SHA to checkout
+        required: false
+env:
+  TZ: Asia/Shanghai
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version:
+        - 18.x
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v1
+      with:
+        repository: ${{ github.event.inputs.repoName }}
+        ref: ${{ github.event.inputs.ref }}
+    - name: Use Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v3
+      with:
+        node-version: ${{ matrix.node-version }}
+    - name: Build-and-deploy
+      run: |
+        remote_addr=`git remote get-url --push origin`
+
+        commit_info=`git describe --all --always --long`
+
+        user_name=`git log -1 --pretty=format:'%an'`
+
+        user_email=`git log -1 --pretty=format:'%ae'`
+
+        deploy_branch=gh-pages
+
+        yarn
+
+        yarn build
+
+        cd docs/.vuepress/dist
+
+        git config --global init.defaultBranch $deploy_branch
+
+        git init
+
+        git config user.name ${user_name}
+
+        git config user.email ${user_email}
+
+        git add -A
+
+        git commit -m "auto deploy, $commit_info"
+
+        remote_addr=`echo $remote_addr | awk -F'://' '{print $2}'`
+
+        remote_addr=https://${user_name}:${{secrets.GITHUB_TOKEN}}@${remote_addr}
+
+        git remote add origin ${remote_addr}
+
+        git push origin HEAD:$deploy_branch --force # 推送到github $deploy_branch分支

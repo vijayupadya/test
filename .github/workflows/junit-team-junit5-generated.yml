@@ -1,0 +1,37 @@
+name: junit-team/junit5
+on:
+  workflow_dispatch:
+    inputs:
+      repoName:
+        description: Name of the repo
+        required: false
+      patch:
+        description: Base64 encoded patch content
+        required: false
+      command:
+        description: Command to run
+        required: false
+      ref:
+        description: The repo branch, tag, or commit SHA to checkout
+        required: false
+env:
+  DEVELOCITY_ACCESS_KEY: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
+jobs:
+  check_build_reproducibility:
+    name: Check build reproducibility
+    runs-on: ubuntu-latest
+    steps:
+    - name: Check out repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 1
+        repository: ${{ github.event.inputs.repoName }}
+        ref: ${{ github.event.inputs.ref }}
+    - name: Restore Gradle cache and display toolchains
+      uses: ./.github/actions/run-gradle
+      with:
+        arguments: --quiet
+    - name: Build and compare checksums
+      shell: bash
+      run: |
+        ./gradle/scripts/checkBuildReproducibility.sh

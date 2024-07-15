@@ -1,0 +1,51 @@
+name: kuba1pie/46-Lottery
+on:
+  workflow_dispatch:
+    inputs:
+      repoName:
+        description: Name of the repo
+        required: false
+      patch:
+        description: Base64 encoded patch content
+        required: false
+      command:
+        description: Command to run
+        required: false
+      ref:
+        description: The repo branch, tag, or commit SHA to checkout
+        required: false
+jobs:
+  ci:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os:
+        - ubuntu-latest
+        node:
+        - 14
+    steps:
+    - name: "Checkout \U0001F6CE"
+      uses: actions/checkout@master
+      with:
+        repository: ${{ github.event.inputs.repoName }}
+        ref: ${{ github.event.inputs.ref }}
+    - name: "Setup node env \U0001F3D7"
+      uses: actions/setup-node@v2.5.1
+      with:
+        node-version: ${{ matrix.node }}
+        check-latest: true
+    - name: "Get yarn cache directory path \U0001F6E0"
+      id: yarn-cache-dir-path
+      run: echo "::set-output name=dir::$(yarn cache dir)"
+    - name: "Cache node_modules \U0001F4E6"
+      uses: actions/cache@v2
+      id: yarn-cache
+      with:
+        path: ${{ steps.yarn-cache-dir-path.outputs.dir }}
+        key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
+        restore-keys: >
+          ${{ runner.os }}-yarn-
+    - name: "Install dependencies \U0001F468\U0001F3FB‍\U0001F4BB"
+      run: yarn
+    - name: "Run linter \U0001F440"
+      run: yarn lint

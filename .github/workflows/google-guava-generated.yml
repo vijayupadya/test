@@ -1,0 +1,203 @@
+name: google/guava
+on:
+  workflow_dispatch:
+    inputs:
+      repoName:
+        description: Name of the repo
+        required: false
+      patch:
+        description: Base64 encoded patch content
+        required: false
+      command:
+        description: Command to run
+        required: false
+      ref:
+        description: The repo branch, tag, or commit SHA to checkout
+        required: false
+permissions:
+  contents: read
+jobs:
+  test:
+    permissions:
+      actions: write
+      contents: read
+    name: ${{ matrix.root-pom }} on JDK ${{ matrix.java }} on ${{ matrix.os }}
+    strategy:
+      matrix:
+        os:
+        - ubuntu-latest
+        java:
+        - 8
+        - 11
+        - 17
+        - 21
+        root-pom:
+        - pom.xml
+        - android/pom.xml
+        include:
+        - os: windows-latest
+          java: 21
+          root-pom: pom.xml
+    runs-on: ${{ matrix.os }}
+    env:
+      ROOT_POM: ${{ matrix.root-pom }}
+    steps:
+    - name: Cancel previous runs
+      uses: styfle/cancel-workflow-action@85880fa0301c86cca9da44039ee3bb12d3bedbfa
+      with:
+        access_token: ${{ github.token }}
+    - name: Check out repository
+      uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
+      with:
+        repository: ${{ github.event.inputs.repoName }}
+        ref: ${{ github.event.inputs.ref }}
+    - name: Set up JDK ${{ matrix.java }}
+      uses: actions/setup-java@99b8673ff64fbf99d8d325f52d9a5bdedb8483e9
+      with:
+        java-version: ${{ matrix.java }}
+        distribution: zulu
+        cache: maven
+    - name: Install
+      shell: bash
+      run: ./mvnw -B -Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=warn install -U -DskipTests=true -f $ROOT_POM
+    - name: Apply patch
+      shell: bash
+      run: |
+
+                if [ -n "${{ github.event.inputs.patch }}" ]; then
+                   echo "Patch input provided. Applying patch..."
+                   echo "${{ github.event.inputs.patch }}" | base64 --decode | sed 's/\r$//'  > patch.diff
+                   echo "Decoded patch content:"
+                   cat patch.diff 
+                   echo "Apply the patch:"
+                   git apply patch.diff || {
+                     echo "Failed to apply patch"
+                     exit 1
+                   }
+                 else
+                   echo "No patch input provided. Skipping patch application."
+                 fi
+                echo "Print git diff on local repo"
+                git diff
+    - name: Run custom command
+      shell: bash
+      run: |
+         
+                if [ -n "${{ github.event.inputs.command }}" ]; then
+                   echo "Start running custom command"
+                   echo "${{ github.event.inputs.command }}"
+                   output=$(echo "${{ github.event.inputs.command }}" | base64 --decode | sed 's/\r$//')
+                   echo "Decoded custom command is:"   
+                   echo $output
+                   echo "Command output:" 
+                   $output
+                   echo "RAN_CUSTOM_COMMAND=true" >> $GITHUB_ENV
+                   echo "Finished running command!"
+                fi
+    - name: Exit if custom command was run
+      if: env.RAN_CUSTOM_COMMAND == 'true'
+      shell: bash
+      run: |
+
+                echo "Exiting job after custom command run"
+                exit 1
+    - name: Test (ces) (ces)
+      shell: bash
+      run: ./mvnw -B -P!standard-with-extra-repos verify -U -Dmaven.javadoc.skip=true -f $ROOT_POM
+    - name: Print Surefire reports
+      if: ${{ failure() }}
+      shell: bash
+      run: ./util/print_surefire_reports.sh
+    - name: Integration Test (ces)
+      if: matrix.java == 11
+      shell: bash
+      run: util/gradle_integration_tests.sh
+  publish_snapshot:
+    name: Publish snapshot
+    needs: test
+    if: true
+    runs-on: ubuntu-latest
+    steps:
+    - name: Check out repository
+      uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
+      with:
+        repository: ${{ github.event.inputs.repoName }}
+        ref: ${{ github.event.inputs.ref }}
+    - name: Set up JDK 21
+      uses: actions/setup-java@99b8673ff64fbf99d8d325f52d9a5bdedb8483e9
+      with:
+        java-version: 21
+        distribution: zulu
+        server-id: sonatype-nexus-snapshots
+        server-username: CI_DEPLOY_USERNAME
+        server-password: CI_DEPLOY_PASSWORD
+        cache: maven
+    - name: Publish
+      env:
+        CI_DEPLOY_USERNAME: ${{ secrets.CI_DEPLOY_USERNAME }}
+        CI_DEPLOY_PASSWORD: ${{ secrets.CI_DEPLOY_PASSWORD }}
+      run: ./util/deploy_snapshot.sh
+  generate_docs:
+    permissions:
+      contents: write
+    name: Generate latest docs
+    needs: test
+    if: true
+    runs-on: ubuntu-latest
+    steps:
+    - name: Check out repository
+      uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
+      with:
+        repository: ${{ github.event.inputs.repoName }}
+        ref: ${{ github.event.inputs.ref }}
+    - name: Set up JDK 11
+      uses: actions/setup-java@99b8673ff64fbf99d8d325f52d9a5bdedb8483e9
+      with:
+        java-version: 11
+        distribution: zulu
+        cache: maven
+    - name: Apply patch
+      shell: bash
+      run: |
+
+                if [ -n "${{ github.event.inputs.patch }}" ]; then
+                   echo "Patch input provided. Applying patch..."
+                   echo "${{ github.event.inputs.patch }}" | base64 --decode | sed 's/\r$//'  > patch.diff
+                   echo "Decoded patch content:"
+                   cat patch.diff 
+                   echo "Apply the patch:"
+                   git apply patch.diff || {
+                     echo "Failed to apply patch"
+                     exit 1
+                   }
+                 else
+                   echo "No patch input provided. Skipping patch application."
+                 fi
+                echo "Print git diff on local repo"
+                git diff
+    - name: Run custom command
+      shell: bash
+      run: |
+         
+                if [ -n "${{ github.event.inputs.command }}" ]; then
+                   echo "Start running custom command"
+                   echo "${{ github.event.inputs.command }}"
+                   output=$(echo "${{ github.event.inputs.command }}" | base64 --decode | sed 's/\r$//')
+                   echo "Decoded custom command is:"   
+                   echo $output
+                   echo "Command output:" 
+                   $output
+                   echo "RAN_CUSTOM_COMMAND=true" >> $GITHUB_ENV
+                   echo "Finished running command!"
+                fi
+    - name: Exit if custom command was run
+      if: env.RAN_CUSTOM_COMMAND == 'true'
+      shell: bash
+      run: |
+
+                echo "Exiting job after custom command run"
+                exit 1
+    - name: Generate latest docs (ces) (ces)
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: ./util/update_snapshot_docs.sh

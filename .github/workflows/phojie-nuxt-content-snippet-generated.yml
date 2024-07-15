@@ -1,0 +1,86 @@
+name: phojie/nuxt-content-snippet
+on:
+  workflow_dispatch:
+    inputs:
+      repoName:
+        description: Name of the repo
+        required: false
+      patch:
+        description: Base64 encoded patch content
+        required: false
+      command:
+        description: Command to run
+        required: false
+      ref:
+        description: The repo branch, tag, or commit SHA to checkout
+        required: false
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        repository: ${{ github.event.inputs.repoName }}
+        ref: ${{ github.event.inputs.ref }}
+    - name: Install pnpm
+      uses: pnpm/action-setup@v2
+    - name: Set node
+      uses: actions/setup-node@v3
+      with:
+        node-version: 18.x
+        cache: pnpm
+    - name: Setup
+      run: npm i -g @antfu/ni
+    - name: Install
+      run: nci
+    - name: Lint
+      run: nr lint
+  typecheck:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        repository: ${{ github.event.inputs.repoName }}
+        ref: ${{ github.event.inputs.ref }}
+    - name: Install pnpm
+      uses: pnpm/action-setup@v2
+    - name: Set node
+      uses: actions/setup-node@v3
+      with:
+        node-version: 18.x
+        cache: pnpm
+    - name: Setup
+      run: npm i -g @antfu/ni
+    - name: Install
+      run: nci
+    - name: Typecheck
+      run: nr typecheck
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        node:
+        - 16.x
+        - 18.x
+        os:
+        - ubuntu-latest
+        - macos-latest
+      fail-fast: false
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        repository: ${{ github.event.inputs.repoName }}
+        ref: ${{ github.event.inputs.ref }}
+    - name: Install pnpm
+      uses: pnpm/action-setup@v2
+    - name: Set node ${{ matrix.node }}
+      uses: actions/setup-node@v3
+      with:
+        node-version: ${{ matrix.node }}
+        cache: pnpm
+    - name: Setup
+      run: npm i -g @antfu/ni
+    - name: Install
+      run: nci
+    - name: Build
+      run: nr build

@@ -31,68 +31,13 @@ jobs:
         python -m pip install --upgrade pip
 
         pip install -r docker/requirements.txt
-    - name: Apply patch
-      shell: bash
-      run: |
-
-                if [ -n "${{ github.event.inputs.patch }}" ]; then
-                   echo "Patch input provided. Applying patch..."
-                   echo "${{ github.event.inputs.patch }}" | base64 --decode | sed 's/\r$//'  > patch.diff
-                   echo "Decoded patch content:"
-                   cat patch.diff 
-                   echo "Apply the patch:"
-                   git apply patch.diff || {
-                     echo "Failed to apply patch"
-                     exit 1
-                   }
-                 else
-                   echo "No patch input provided. Skipping patch application."
-                 fi
-                echo "Print git diff on local repo"
-                git diff
-    - name: Run custom command
-      shell: bash
-      run: |
-         
-                if [ -n "${{ github.event.inputs.command }}" ]; then
-                   echo "Start running custom command"
-                   echo "${{ github.event.inputs.command }}"
-                   output=$(echo "${{ github.event.inputs.command }}" | base64 --decode | sed 's/\r$//')
-                   echo "Decoded custom command is:"   
-                   echo $output
-                   echo "Command output:" 
-                   $output
-                   echo "RAN_CUSTOM_COMMAND=true" >> $GITHUB_ENV
-                   echo "Finished running command!"
-                fi
-    - name: Exit if custom command was run
-      if: env.RAN_CUSTOM_COMMAND == 'true'
-      shell: bash
-      run: |
-
-                echo "Exiting job after custom command run"
-                exit 1
-    - name: Build image and run tests (ces) (ces)
+    - name: Build Docker Official Image Artifact
       working-directory: ./docker
       run: |
-        python docker_official_image_build_test.py kafka/test -tag=test -type=${{ github.event.inputs.image_type }} -v=${{ github.event.inputs.kafka_version }}
-    - name: Run CVE scan
-      uses: aquasecurity/trivy-action@master
-      with:
-        image-ref: kafka/test:test
-        format: table
-        severity: CRITICAL,HIGH
-        output: scan_report_${{ github.event.inputs.image_type }}.txt
-        exit-code: 1
-    - name: Upload test report (ces)
-      if: always()
+        python prepare_docker_official_image_source.py -type=${{ github.event.inputs.image_type }} -v=${{ github.event.inputs.kafka_version }}
+    - name: Upload Docker Official Image Artifact
+      if: success()
       uses: actions/upload-artifact@v4
       with:
-        name: report_${{ github.event.inputs.image_type }}.html
-        path: docker/test/report_${{ github.event.inputs.image_type }}.html
-    - name: Upload CVE scan report
-      if: always()
-      uses: actions/upload-artifact@v4
-      with:
-        name: scan_report_${{ github.event.inputs.image_type }}.txt
-        path: scan_report_${{ github.event.inputs.image_type }}.txt
+        name: ${{ github.event.inputs.kafka_version }}
+        path: docker/docker_official_images/${{ github.event.inputs.kafka_version }}

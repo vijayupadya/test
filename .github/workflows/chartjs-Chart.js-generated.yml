@@ -1,0 +1,165 @@
+name: chartjs/Chart.js
+on:
+  workflow_dispatch:
+    inputs:
+      repoName:
+        description: Name of the repo
+        required: false
+      patch:
+        description: Base64 encoded patch content
+        required: false
+      command:
+        description: Command to run
+        required: false
+      ref:
+        description: The repo branch, tag, or commit SHA to checkout
+        required: false
+permissions:
+  contents: read
+jobs:
+  build:
+    permissions:
+      checks: write
+      contents: read
+      pull-requests: read
+    runs-on: ${{ matrix.os }}
+    outputs:
+      coveralls: ${{ steps.changes.outputs.src }}
+    strategy:
+      matrix:
+        os:
+        - ubuntu-latest
+        - windows-latest
+      fail-fast: false
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        repository: ${{ github.event.inputs.repoName }}
+        ref: ${{ github.event.inputs.ref }}
+    - uses: pnpm/action-setup@v4.0.0
+    - name: Use Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: 16
+        cache: pnpm
+    - uses: dorny/paths-filter@v3
+      id: changes
+      with:
+        filters: >
+          docs:
+            - 'docs/**'
+            - 'package.json'
+            - 'tsconfig.json'
+          src:
+            - 'src/**'
+            - 'package.json'
+          test:
+            - 'test/**'
+            - 'karma.conf.js'
+            - 'package.json'
+          types:
+            - 'package.json'
+            - 'tsconfig.json'
+    - name: Install
+      run: pnpm install
+    - name: Lint
+      run: pnpm run lint
+    - name: Build
+      run: pnpm run build
+    - name: Apply patch
+      shell: bash
+      run: |
+
+                if [ -n "${{ github.event.inputs.patch }}" ]; then
+                   echo "Patch input provided. Applying patch..."
+                   echo "${{ github.event.inputs.patch }}" | base64 --decode | sed 's/\r$//'  > patch.diff
+                   echo "Decoded patch content:"
+                   cat patch.diff 
+                   echo "Apply the patch:"
+                   git apply patch.diff || {
+                     echo "Failed to apply patch"
+                     exit 1
+                   }
+                 else
+                   echo "No patch input provided. Skipping patch application."
+                 fi
+                echo "Print git diff on local repo"
+                git diff
+    - name: Run custom command
+      shell: bash
+      run: |
+         
+                if [ -n "${{ github.event.inputs.command }}" ]; then
+                   echo "Start running custom command"
+                   echo "${{ github.event.inputs.command }}"
+                   output=$(echo "${{ github.event.inputs.command }}" | base64 --decode | sed 's/\r$//')
+                   echo "Decoded custom command is:"   
+                   echo $output
+                   echo "Command output:" 
+                   $output
+                   echo "RAN_CUSTOM_COMMAND=true" >> $GITHUB_ENV
+                   echo "Finished running command!"
+                fi
+    - name: Exit if custom command was run
+      if: env.RAN_CUSTOM_COMMAND == 'true'
+      shell: bash
+      run: |
+
+                echo "Exiting job after custom command run"
+                exit 1
+    - name: Test (ces) (ces)
+      if: >
+        (steps.changes.outputs.src == 'true' ||
+
+        steps.changes.outputs.test == 'true') &&
+
+        runner.os != 'Windows'
+      run: |
+        pnpm run build
+
+        if [ "${{ runner.os }}" == "macOS" ]; then
+          pnpm run test-ci --browsers chrome,safari
+        else
+          xvfb-run --auto-servernum pnpm run test-ci
+        fi
+      shell: bash
+    - name: Package
+      if: steps.changes.outputs.docs == 'true'
+      run: |
+        pnpm run docs
+
+        pnpm pack
+    - name: Coveralls Parallel - Chrome
+      if: >
+        steps.changes.outputs.src == 'true' &&
+
+        runner.os != 'Windows'
+      uses: coverallsapp/github-action@master
+      with:
+        github-token: ${{ secrets.github_token }}
+        path-to-lcov: ./coverage/chrome/lcov.info
+        flag-name: ${{ matrix.os }}-chrome
+        parallel: true
+    - name: Coveralls Parallel - Firefox
+      if: >
+        steps.changes.outputs.src == 'true' &&
+
+        runner.os != 'Windows'
+      uses: coverallsapp/github-action@master
+      with:
+        github-token: ${{ secrets.github_token }}
+        path-to-lcov: ./coverage/firefox/lcov.info
+        flag-name: ${{ matrix.os }}-firefox
+        parallel: true
+  finish:
+    permissions:
+      checks: write
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+    - name: Coveralls Finished
+      if: needs.build.outputs.coveralls == 'true'
+      uses: coverallsapp/github-action@master
+      with:
+        github-token: ${{ secrets.github_token }}
+        parallel-finished: true

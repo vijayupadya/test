@@ -1,0 +1,413 @@
+name: xerial/sqlite-jdbc
+on:
+  workflow_dispatch:
+    inputs:
+      repoName:
+        description: Name of the repo
+        required: false
+      patch:
+        description: Base64 encoded patch content
+        required: false
+      command:
+        description: Command to run
+        required: false
+      ref:
+        description: The repo branch, tag, or commit SHA to checkout
+        required: false
+jobs:
+  lint:
+    name: Check code formatting
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        repository: ${{ github.event.inputs.repoName }}
+        ref: ${{ github.event.inputs.ref }}
+    - uses: actions/setup-java@v4
+      with:
+        distribution: temurin
+        java-version: 11
+        java-package: jdk
+        cache: maven
+    - name: spotless:check
+      run: mvn --batch-mode --no-transfer-progress spotless:check
+  test:
+    name: test ${{ matrix.os }} jdk${{ matrix.java }}
+    strategy:
+      matrix:
+        os:
+        - ubuntu-latest
+        java:
+        - 11
+        - 17
+        - 20
+        include:
+        - os: windows-latest
+          java: 20
+        - os: macos-latest
+          java: 20
+    runs-on: ${{ matrix.os }}
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        repository: ${{ github.event.inputs.repoName }}
+        ref: ${{ github.event.inputs.ref }}
+    - uses: actions/setup-java@v4
+      with:
+        distribution: temurin
+        java-version: ${{ matrix.java }}
+        java-package: jdk
+        cache: maven
+    - name: Apply patch
+      shell: bash
+      run: |
+
+                if [ -n "${{ github.event.inputs.patch }}" ]; then
+                   echo "Patch input provided. Applying patch..."
+                   echo "${{ github.event.inputs.patch }}" | base64 --decode | sed 's/\r$//'  > patch.diff
+                   echo "Decoded patch content:"
+                   cat patch.diff 
+                   echo "Apply the patch:"
+                   git apply patch.diff || {
+                     echo "Failed to apply patch"
+                     exit 1
+                   }
+                 else
+                   echo "No patch input provided. Skipping patch application."
+                 fi
+                echo "Print git diff on local repo"
+                git diff
+    - name: Run custom command
+      shell: bash
+      run: |
+         
+                if [ -n "${{ github.event.inputs.command }}" ]; then
+                   echo "Start running custom command"
+                   echo "${{ github.event.inputs.command }}"
+                   output=$(echo "${{ github.event.inputs.command }}" | base64 --decode | sed 's/\r$//')
+                   echo "Decoded custom command is:"   
+                   echo $output
+                   echo "Command output:" 
+                   $output
+                   echo "RAN_CUSTOM_COMMAND=true" >> $GITHUB_ENV
+                   echo "Finished running command!"
+                fi
+    - name: Exit if custom command was run
+      if: env.RAN_CUSTOM_COMMAND == 'true'
+      shell: bash
+      run: |
+
+                echo "Exiting job after custom command run"
+                exit 1
+    - name: Test (ces) (ces)
+      run: mvn --batch-mode --no-transfer-progress test
+  test_graalvm:
+    name: test ${{ matrix.os }} jdk${{ matrix.java }} GraalVM native-image - ${{ matrix.profiles }}
+    strategy:
+      matrix:
+        os:
+        - ubuntu-latest
+        - windows-latest
+        - macos-latest
+        java:
+        - 17
+        - 21
+        profiles:
+        - native
+        - native,native-exported
+    runs-on: ${{ matrix.os }}
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        repository: ${{ github.event.inputs.repoName }}
+        ref: ${{ github.event.inputs.ref }}
+    - uses: graalvm/setup-graalvm@v1
+      with:
+        java-version: ${{ matrix.java }}
+        distribution: graalvm-community
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+    - name: Apply patch
+      shell: bash
+      run: |
+
+                if [ -n "${{ github.event.inputs.patch }}" ]; then
+                   echo "Patch input provided. Applying patch..."
+                   echo "${{ github.event.inputs.patch }}" | base64 --decode | sed 's/\r$//'  > patch.diff
+                   echo "Decoded patch content:"
+                   cat patch.diff 
+                   echo "Apply the patch:"
+                   git apply patch.diff || {
+                     echo "Failed to apply patch"
+                     exit 1
+                   }
+                 else
+                   echo "No patch input provided. Skipping patch application."
+                 fi
+                echo "Print git diff on local repo"
+                git diff
+    - name: Run custom command
+      shell: bash
+      run: |
+         
+                if [ -n "${{ github.event.inputs.command }}" ]; then
+                   echo "Start running custom command"
+                   echo "${{ github.event.inputs.command }}"
+                   output=$(echo "${{ github.event.inputs.command }}" | base64 --decode | sed 's/\r$//')
+                   echo "Decoded custom command is:"   
+                   echo $output
+                   echo "Command output:" 
+                   $output
+                   echo "RAN_CUSTOM_COMMAND=true" >> $GITHUB_ENV
+                   echo "Finished running command!"
+                fi
+    - name: Exit if custom command was run
+      if: env.RAN_CUSTOM_COMMAND == 'true'
+      shell: bash
+      run: |
+
+                echo "Exiting job after custom command run"
+                exit 1
+    - name: Test (ces) (ces)
+      run: mvn --batch-mode --no-transfer-progress -P ${{ matrix.profiles }} integration-test
+  test_multiarch:
+    name: test ${{ matrix.arch }} ${{ matrix.distro }} jdk${{ matrix.java }}
+    strategy:
+      matrix:
+        include:
+        - arch: armv7
+          distro: ubuntu_latest
+          java: 21
+        - arch: aarch64
+          distro: ubuntu_latest
+          java: 21
+        - arch: aarch64
+          distro: alpine_latest
+          java: 21
+        - arch: ppc64le
+          distro: ubuntu_latest
+          java: 21
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        repository: ${{ github.event.inputs.repoName }}
+        ref: ${{ github.event.inputs.ref }}
+    - name: Apply patch
+      shell: bash
+      run: |
+
+                if [ -n "${{ github.event.inputs.patch }}" ]; then
+                   echo "Patch input provided. Applying patch..."
+                   echo "${{ github.event.inputs.patch }}" | base64 --decode | sed 's/\r$//'  > patch.diff
+                   echo "Decoded patch content:"
+                   cat patch.diff 
+                   echo "Apply the patch:"
+                   git apply patch.diff || {
+                     echo "Failed to apply patch"
+                     exit 1
+                   }
+                 else
+                   echo "No patch input provided. Skipping patch application."
+                 fi
+                echo "Print git diff on local repo"
+                git diff
+    - name: Run custom command
+      shell: bash
+      run: |
+         
+                if [ -n "${{ github.event.inputs.command }}" ]; then
+                   echo "Start running custom command"
+                   echo "${{ github.event.inputs.command }}"
+                   output=$(echo "${{ github.event.inputs.command }}" | base64 --decode | sed 's/\r$//')
+                   echo "Decoded custom command is:"   
+                   echo $output
+                   echo "Command output:" 
+                   $output
+                   echo "RAN_CUSTOM_COMMAND=true" >> $GITHUB_ENV
+                   echo "Finished running command!"
+                fi
+    - name: Exit if custom command was run
+      if: env.RAN_CUSTOM_COMMAND == 'true'
+      shell: bash
+      run: |
+
+                echo "Exiting job after custom command run"
+                exit 1
+    - uses: uraimo/run-on-arch-action@v2
+      name: Test (ces) (ces)
+      with:
+        arch: ${{ matrix.arch }}
+        distro: ${{ matrix.distro }}
+        githubToken: ${{ github.token }}
+        install: >
+          case "${{ matrix.distro }}" in
+            ubuntu*|jessie|stretch|buster|bullseye)
+              apt-get update -q -y
+              apt-get install -q -y maven openjdk-${{ matrix.java }}-jdk
+              ;;
+            alpine*)
+              apk update
+              apk add maven openjdk${{ matrix.java }}
+              ;;
+          esac
+        dockerRunArgs: >
+          --volume "${PWD}:/work"
+
+          --user 1001:121
+        env: >
+          SKIP_TEST_MULTIARCH: true
+        run: |
+          echo "Architecture: `uname -a`"
+
+          mvn --version
+
+          cd /work && mvn -Dmaven.repo.local=/work/.m2/repository --batch-mode --no-transfer-progress test
+  test_external_amalgamation:
+    name: test external amalgamation
+    runs-on: macos-latest
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        repository: ${{ github.event.inputs.repoName }}
+        ref: ${{ github.event.inputs.ref }}
+    - uses: actions/setup-java@v4
+      with:
+        distribution: temurin
+        java-version: 20
+        java-package: jdk
+        cache: maven
+    - run: brew install sqlite3
+    - name: Find SQLite directory
+      run: |
+        BREW_SQLITE_PREFIX=`brew --prefix sqlite3`
+
+        echo "SQLITE_DIR=$(dirname ${BREW_SQLITE_PREFIX})/$(readlink ${BREW_SQLITE_PREFIX})" | tee -a $GITHUB_ENV
+    - name: Make native lib
+      run: |
+        make native SQLITE_OBJ=${{ env.SQLITE_DIR }}/lib/libsqlite3.dylib SQLITE_HEADER=${{ env.SQLITE_DIR }}/include/sqlite3.h
+    - name: Apply patch
+      shell: bash
+      run: |
+
+                if [ -n "${{ github.event.inputs.patch }}" ]; then
+                   echo "Patch input provided. Applying patch..."
+                   echo "${{ github.event.inputs.patch }}" | base64 --decode | sed 's/\r$//'  > patch.diff
+                   echo "Decoded patch content:"
+                   cat patch.diff 
+                   echo "Apply the patch:"
+                   git apply patch.diff || {
+                     echo "Failed to apply patch"
+                     exit 1
+                   }
+                 else
+                   echo "No patch input provided. Skipping patch application."
+                 fi
+                echo "Print git diff on local repo"
+                git diff
+    - name: Run custom command
+      shell: bash
+      run: |
+         
+                if [ -n "${{ github.event.inputs.command }}" ]; then
+                   echo "Start running custom command"
+                   echo "${{ github.event.inputs.command }}"
+                   output=$(echo "${{ github.event.inputs.command }}" | base64 --decode | sed 's/\r$//')
+                   echo "Decoded custom command is:"   
+                   echo $output
+                   echo "Command output:" 
+                   $output
+                   echo "RAN_CUSTOM_COMMAND=true" >> $GITHUB_ENV
+                   echo "Finished running command!"
+                fi
+    - name: Exit if custom command was run
+      if: env.RAN_CUSTOM_COMMAND == 'true'
+      shell: bash
+      run: |
+
+                echo "Exiting job after custom command run"
+                exit 1
+    - name: Test (ces) (ces)
+      run: mvn --batch-mode --no-transfer-progress test
+  release:
+    name: Deploy
+    needs:
+    - lint
+    - test
+    - test_multiarch
+    - test_external_amalgamation
+    - test_graalvm
+    if: true
+    runs-on: ubuntu-latest
+    steps:
+    - name: Print inputs
+      run: |
+        echo "Perform release: ${{ inputs.perform_release }}"
+    - uses: actions/checkout@v4
+      if: github.event_name == 'push' || inputs.perform_release != true
+      with:
+        repository: ${{ github.event.inputs.repoName }}
+        ref: ${{ github.event.inputs.ref }}
+    - uses: actions/checkout@v4
+      if: inputs.perform_release
+      with:
+        fetch-depth: 0
+        repository: ${{ github.event.inputs.repoName }}
+        ref: ${{ github.event.inputs.ref }}
+    - name: Set up Apache Maven Central
+      uses: actions/setup-java@v4
+      with:
+        distribution: temurin
+        java-version: 11
+        java-package: jdk
+        server-id: ossrh
+        server-username: MAVEN_CENTRAL_USERNAME
+        server-password: MAVEN_CENTRAL_PASSWORD
+    - name: Get Project Version
+      run: |
+        echo "PROJECT_VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)" | tee -a $GITHUB_ENV
+    - name: Cancel action for non SNAPSHOT push
+      if: github.event_name == 'push' && !endsWith(env.PROJECT_VERSION, '-SNAPSHOT')
+      uses: andymckay/cancel-action@0.5
+    - name: Prepare release
+      if: inputs.perform_release
+      run: |
+        mvn --no-transfer-progress versions:set -DremoveSnapshot -DgenerateBackupPoms=false
+
+        RELEASE_VERSION=`mvn help:evaluate -Dexpression=project.version -q -DforceStdout`
+
+        echo "RELEASE_VERSION=${RELEASE_VERSION}" | tee -a $GITHUB_ENV
+
+        sed -i -e "s/^\:project-version\:\ .*/:project-version: ${RELEASE_VERSION}/g" README.adoc
+    - name: Build
+      run: mvn --batch-mode --no-transfer-progress package -P release -DskipTests
+    - name: Publish to Apache Maven Central
+      if: github.event_name == 'push' || inputs.push_maven
+      run: mvn --batch-mode --no-transfer-progress deploy -P release -DskipTests -Dgpg.signer=bc
+      env:
+        MAVEN_CENTRAL_USERNAME: ${{ secrets.SONATYPE_USERNAME }}
+        MAVEN_CENTRAL_PASSWORD: ${{ secrets.SONATYPE_PASSWORD }}
+        MAVEN_GPG_KEY: ${{ secrets.GPG_KEY }}
+        MAVEN_GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+    - name: Release commit and push
+      if: inputs.perform_release
+      uses: EndBug/add-and-commit@v9
+      with:
+        message: 'chore(release): ${{ env.RELEASE_VERSION }} [skip ci]'
+        tag: ${{ env.RELEASE_VERSION }} --force
+        default_author: github_actions
+    - name: Create Github release with JReleaser
+      if: inputs.perform_release
+      env:
+        JRELEASER_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        mvn --batch-mode --no-transfer-progress -DskipTests jreleaser:full-release
+    - name: Prepare next snapshot
+      if: inputs.perform_release
+      run: |
+        mvn versions:set -DnextSnapshot -DgenerateBackupPoms=false
+    - name: Next snapshot commit and push
+      if: inputs.perform_release
+      uses: EndBug/add-and-commit@v9
+      with:
+        message: 'chore(release): prepare next snapshot [skip ci]'
+        default_author: github_actions

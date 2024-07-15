@@ -1,0 +1,53 @@
+name: dotnet/ai-samples
+on:
+  workflow_dispatch:
+    inputs:
+      repoName:
+        description: Name of the repo
+        required: false
+      patch:
+        description: Base64 encoded patch content
+        required: false
+      command:
+        description: Command to run
+        required: false
+      ref:
+        description: The repo branch, tag, or commit SHA to checkout
+        required: false
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.head_ref }}
+  cancel-in-progress: true
+permissions:
+  contents: read
+  packages: write
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        repository: ${{ github.event.inputs.repoName }}
+        ref: ${{ github.event.inputs.ref }}
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v3
+      with:
+        global-json-file: global.json
+    - name: Build all solutions
+      run: |
+        # get all .sln files using powershell
+
+        $ErrorActionPreference = "Stop"
+
+        $slnFiles = Get-ChildItem -Path . -Recurse -Filter *.sln
+
+        foreach ($sln in $slnFiles) {
+          Write-Host "Building $sln"
+          dotnet build $sln.FullName
+
+          if ($LASTEXITCODE -ne 0) {
+            Write-Error "Failed to build $sln"
+            exit $LASTEXITCODE
+          }
+        }
+      shell: pwsh

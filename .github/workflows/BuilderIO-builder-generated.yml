@@ -1,0 +1,425 @@
+name: BuilderIO/builder
+on:
+  workflow_dispatch:
+    inputs:
+      repoName:
+        description: Name of the repo
+        required: false
+      patch:
+        description: Base64 encoded patch content
+        required: false
+      command:
+        description: Command to run
+        required: false
+      ref:
+        description: The repo branch, tag, or commit SHA to checkout
+        required: false
+env:
+  NX_CLOUD_ACCESS_TOKEN: ${{ secrets.NX_CLOUD_ACCESS_TOKEN }}
+jobs:
+  sdks-base:
+    name: Gen 2 SDKs checks
+    runs-on: ubuntu-latest
+    steps:
+    - name: Setup
+      uses: actions/checkout@v4
+      with:
+        repository: ${{ github.event.inputs.repoName }}
+        ref: ${{ github.event.inputs.ref }}
+    - name: Use Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: 18.x
+    - name: "\U0001F4E5 Monorepo install"
+      uses: ./.github/actions/yarn-nm-install
+      with:
+        cache-node-modules: true
+        cache-install-state: true
+    - name: Run eslint
+      run: yarn workspace @builder.io/sdks eslint
+    - name: Typecheck
+      run: yarn nx typecheck @builder.io/sdks
+    - name: Apply patch
+      shell: bash
+      run: |
+
+                if [ -n "${{ github.event.inputs.patch }}" ]; then
+                   echo "Patch input provided. Applying patch..."
+                   echo "${{ github.event.inputs.patch }}" | base64 --decode | sed 's/\r$//'  > patch.diff
+                   echo "Decoded patch content:"
+                   cat patch.diff 
+                   echo "Apply the patch:"
+                   git apply patch.diff || {
+                     echo "Failed to apply patch"
+                     exit 1
+                   }
+                 else
+                   echo "No patch input provided. Skipping patch application."
+                 fi
+                echo "Print git diff on local repo"
+                git diff
+    - name: Run custom command
+      shell: bash
+      run: |
+         
+                if [ -n "${{ github.event.inputs.command }}" ]; then
+                   echo "Start running custom command"
+                   echo "${{ github.event.inputs.command }}"
+                   output=$(echo "${{ github.event.inputs.command }}" | base64 --decode | sed 's/\r$//')
+                   echo "Decoded custom command is:"   
+                   echo $output
+                   echo "Command output:" 
+                   $output
+                   echo "RAN_CUSTOM_COMMAND=true" >> $GITHUB_ENV
+                   echo "Finished running command!"
+                fi
+    - name: Exit if custom command was run
+      if: env.RAN_CUSTOM_COMMAND == 'true'
+      shell: bash
+      run: |
+
+                echo "Exiting job after custom command run"
+                exit 1
+    - name: Run tests (ces) (ces)
+      run: yarn nx test @builder.io/sdks
+    - name: Lint changesets
+      run: yarn g:changeset version
+  sdks:
+    name: Gen 2 SDKs
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        e2e-server:
+        - svelte
+        - sveltekit
+        - react-native
+        - solid
+        - solid-start
+        - qwik-city
+        - react
+        - remix
+        - hydrogen
+        - react-sdk-next-pages
+        - react-sdk-next-app
+        - nextjs-sdk-next-app
+        - vue
+        - nuxt
+        - angular
+        - angular-ssr
+    steps:
+    - name: Setup
+      uses: actions/checkout@v4
+      with:
+        repository: ${{ github.event.inputs.repoName }}
+        ref: ${{ github.event.inputs.ref }}
+    - name: Use Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: 18.x
+    - name: "\U0001F4E5 Monorepo install"
+      uses: ./.github/actions/yarn-nm-install
+      with:
+        cache-node-modules: true
+        cache-install-state: true
+    - name: Apply patch
+      shell: bash
+      run: |
+
+                if [ -n "${{ github.event.inputs.patch }}" ]; then
+                   echo "Patch input provided. Applying patch..."
+                   echo "${{ github.event.inputs.patch }}" | base64 --decode | sed 's/\r$//'  > patch.diff
+                   echo "Decoded patch content:"
+                   cat patch.diff 
+                   echo "Apply the patch:"
+                   git apply patch.diff || {
+                     echo "Failed to apply patch"
+                     exit 1
+                   }
+                 else
+                   echo "No patch input provided. Skipping patch application."
+                 fi
+                echo "Print git diff on local repo"
+                git diff
+    - name: Run custom command
+      shell: bash
+      run: |
+         
+                if [ -n "${{ github.event.inputs.command }}" ]; then
+                   echo "Start running custom command"
+                   echo "${{ github.event.inputs.command }}"
+                   output=$(echo "${{ github.event.inputs.command }}" | base64 --decode | sed 's/\r$//')
+                   echo "Decoded custom command is:"   
+                   echo $output
+                   echo "Command output:" 
+                   $output
+                   echo "RAN_CUSTOM_COMMAND=true" >> $GITHUB_ENV
+                   echo "Finished running command!"
+                fi
+    - name: Exit if custom command was run
+      if: env.RAN_CUSTOM_COMMAND == 'true'
+      shell: bash
+      run: |
+
+                echo "Exiting job after custom command run"
+                exit 1
+    - name: Run E2E tests (ces) (ces)
+      run: yarn nx test @e2e/${{ matrix.e2e-server }}
+    - name: Upload Playwright Report
+      uses: actions/upload-artifact@v3
+      if: ${{ failure() }}
+      with:
+        name: ${{ matrix.e2e-server }}-playwright-report
+        path: packages/sdks-tests/playwright-report/
+        retention-days: 30
+  sdks-snippets:
+    name: Gen 2 SDK Snippets
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        snippet:
+        - vue
+        - nuxt
+        - react
+        - angular
+        - angular-ssr
+        - qwik-city
+        - nextjs-sdk-next-app
+        - react-sdk-next-app
+        - react-sdk-next-pages
+        - svelte
+        - sveltekit
+        - solid
+        - react-native
+    steps:
+    - name: Setup
+      uses: actions/checkout@v4
+      with:
+        repository: ${{ github.event.inputs.repoName }}
+        ref: ${{ github.event.inputs.ref }}
+    - name: Use Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: 18.x
+    - name: "\U0001F4E5 Monorepo install"
+      uses: ./.github/actions/yarn-nm-install
+      with:
+        cache-node-modules: true
+        cache-install-state: true
+    - name: Apply patch
+      shell: bash
+      run: |
+
+                if [ -n "${{ github.event.inputs.patch }}" ]; then
+                   echo "Patch input provided. Applying patch..."
+                   echo "${{ github.event.inputs.patch }}" | base64 --decode | sed 's/\r$//'  > patch.diff
+                   echo "Decoded patch content:"
+                   cat patch.diff 
+                   echo "Apply the patch:"
+                   git apply patch.diff || {
+                     echo "Failed to apply patch"
+                     exit 1
+                   }
+                 else
+                   echo "No patch input provided. Skipping patch application."
+                 fi
+                echo "Print git diff on local repo"
+                git diff
+    - name: Run custom command
+      shell: bash
+      run: |
+         
+                if [ -n "${{ github.event.inputs.command }}" ]; then
+                   echo "Start running custom command"
+                   echo "${{ github.event.inputs.command }}"
+                   output=$(echo "${{ github.event.inputs.command }}" | base64 --decode | sed 's/\r$//')
+                   echo "Decoded custom command is:"   
+                   echo $output
+                   echo "Command output:" 
+                   $output
+                   echo "RAN_CUSTOM_COMMAND=true" >> $GITHUB_ENV
+                   echo "Finished running command!"
+                fi
+    - name: Exit if custom command was run
+      if: env.RAN_CUSTOM_COMMAND == 'true'
+      shell: bash
+      run: |
+
+                echo "Exiting job after custom command run"
+                exit 1
+    - name: Run snippets tests (ces) (ces)
+      run: yarn nx test @snippet/${{ matrix.snippet }}
+    - name: Upload Playwright Report
+      uses: actions/upload-artifact@v3
+      if: ${{ failure() }}
+      with:
+        name: ${{ matrix.snippet }}-snippet-playwright-report
+        path: packages/sdks-tests/playwright-report/
+        retention-days: 30
+  gen1-sdk-core:
+    name: Gen 1 SDK Core
+    runs-on: ubuntu-latest
+    steps:
+    - name: Setup
+      uses: actions/checkout@v4
+      with:
+        repository: ${{ github.event.inputs.repoName }}
+        ref: ${{ github.event.inputs.ref }}
+    - name: Use Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: 18.x
+    - name: "\U0001F4E5 Monorepo install"
+      uses: ./.github/actions/yarn-nm-install
+      with:
+        cache-node-modules: true
+        cache-install-state: true
+    - name: Build Core
+      run: yarn nx build @builder.io/sdk
+  gen1-react-sdk:
+    name: Gen 1 React SDK
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        e2e-server:
+        - gen1-react
+        - gen1-next
+        - gen1-remix
+    steps:
+    - name: Setup
+      uses: actions/checkout@v4
+      with:
+        repository: ${{ github.event.inputs.repoName }}
+        ref: ${{ github.event.inputs.ref }}
+    - name: Use Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: 18.x
+    - name: "\U0001F4E5 Monorepo install"
+      uses: ./.github/actions/yarn-nm-install
+      with:
+        cache-node-modules: true
+        cache-install-state: true
+    - name: Apply patch
+      shell: bash
+      run: |
+
+                if [ -n "${{ github.event.inputs.patch }}" ]; then
+                   echo "Patch input provided. Applying patch..."
+                   echo "${{ github.event.inputs.patch }}" | base64 --decode | sed 's/\r$//'  > patch.diff
+                   echo "Decoded patch content:"
+                   cat patch.diff 
+                   echo "Apply the patch:"
+                   git apply patch.diff || {
+                     echo "Failed to apply patch"
+                     exit 1
+                   }
+                 else
+                   echo "No patch input provided. Skipping patch application."
+                 fi
+                echo "Print git diff on local repo"
+                git diff
+    - name: Run custom command
+      shell: bash
+      run: |
+         
+                if [ -n "${{ github.event.inputs.command }}" ]; then
+                   echo "Start running custom command"
+                   echo "${{ github.event.inputs.command }}"
+                   output=$(echo "${{ github.event.inputs.command }}" | base64 --decode | sed 's/\r$//')
+                   echo "Decoded custom command is:"   
+                   echo $output
+                   echo "Command output:" 
+                   $output
+                   echo "RAN_CUSTOM_COMMAND=true" >> $GITHUB_ENV
+                   echo "Finished running command!"
+                fi
+    - name: Exit if custom command was run
+      if: env.RAN_CUSTOM_COMMAND == 'true'
+      shell: bash
+      run: |
+
+                echo "Exiting job after custom command run"
+                exit 1
+    - name: Run E2E tests (ces) (ces)
+      run: yarn nx test @e2e/${{ matrix.e2e-server }}
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        package:
+        - webcomponents
+        - widgets
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        repository: ${{ github.event.inputs.repoName }}
+        ref: ${{ github.event.inputs.ref }}
+    - name: Use node version 18
+      uses: actions/setup-node@v4
+      with:
+        node-version: 18.x
+    - name: Get npm cache directory
+      id: npm-cache-dir
+      run: |
+        echo "::set-output name=dir::$(npm config get cache)"
+    - uses: actions/cache@v4
+      id: npm-cache
+      with:
+        path: ${{ steps.npm-cache-dir.outputs.dir }}
+        key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+        restore-keys: >
+          ${{ runner.os }}-node-
+    - name: NPM install
+      run: npm ci --legacy-peer-deps
+      working-directory: packages/${{ matrix.package }}
+    - name: Build
+      run: npm run ci:build --if-present
+      working-directory: packages/${{ matrix.package }}
+    - name: Apply patch
+      shell: bash
+      run: |
+
+                if [ -n "${{ github.event.inputs.patch }}" ]; then
+                   echo "Patch input provided. Applying patch..."
+                   echo "${{ github.event.inputs.patch }}" | base64 --decode | sed 's/\r$//'  > patch.diff
+                   echo "Decoded patch content:"
+                   cat patch.diff 
+                   echo "Apply the patch:"
+                   git apply patch.diff || {
+                     echo "Failed to apply patch"
+                     exit 1
+                   }
+                 else
+                   echo "No patch input provided. Skipping patch application."
+                 fi
+                echo "Print git diff on local repo"
+                git diff
+    - name: Run custom command
+      shell: bash
+      run: |
+         
+                if [ -n "${{ github.event.inputs.command }}" ]; then
+                   echo "Start running custom command"
+                   echo "${{ github.event.inputs.command }}"
+                   output=$(echo "${{ github.event.inputs.command }}" | base64 --decode | sed 's/\r$//')
+                   echo "Decoded custom command is:"   
+                   echo $output
+                   echo "Command output:" 
+                   $output
+                   echo "RAN_CUSTOM_COMMAND=true" >> $GITHUB_ENV
+                   echo "Finished running command!"
+                fi
+    - name: Exit if custom command was run
+      if: env.RAN_CUSTOM_COMMAND == 'true'
+      shell: bash
+      run: |
+
+                echo "Exiting job after custom command run"
+                exit 1
+    - name: Test (ces) (ces)
+      run: npm run ci:test --if-present
+      working-directory: packages/${{ matrix.package }}

@@ -17,19 +17,97 @@ on:
 permissions:
   contents: read
 jobs:
-  arm-none-eabi:
-    runs-on: ubuntu-22.04
-    container:
-      image: devkitpro/devkitarm:latest
+  msvc:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+        - windows-2019
+        - windows-latest
+        include:
+        - name: msvc-2019-x86
+          os: windows-2019
+          ARCH: x86
+        - name: msvc-2019-amd64
+          os: windows-latest
+          ARCH: amd64
+    name: ${{ matrix.name }}
     steps:
-    - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
+    - name: Checkout
+      uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
       with:
         repository: ${{ github.event.inputs.repoName }}
         ref: ${{ github.event.inputs.ref }}
-    - name: Configure CMake
+    - name: Setup Ccache
+      uses: hendrikmuhs/ccache-action@c92f40bee50034e84c763e33b317c77adaa81c92
+      with:
+        variant: sccache
+        key: ${{ github.job }}-${{ matrix.os }}-${{ matrix.ARCH }}
+    - name: Setup Python
+      uses: actions/setup-python@39cd14951b08e74b54015e9e001cdefcf80e669f
+      with:
+        python-version: 3.x
+    - name: Setup MSVC
+      uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756
+      with:
+        arch: ${{ matrix.ARCH }}
+    - name: Install Python Dependencies
       run: |
-        cmake -S . -B build \
-          -DCMAKE_TOOLCHAIN_FILE=${DEVKITPRO}/cmake/3DS.cmake
+        pip3 install -r .ci/requirements.txt --require-hashes
+    - name: Setup Meson
+      run: |
+        sccache --version
+
+        meson setup build `
+          --wrap-mode=forcefallback `
+          --buildtype=release `
+          -Dglib=enabled `
+          -Dfreetype=enabled `
+          -Dgdi=enabled `
+          -Ddirectwrite=enabled
     - name: Build
-      run: make CXX_FLAGS="-w -DHB_NO_MT"
-      working-directory: build
+      run: meson compile -Cbuild
+    - name: Apply patch
+      shell: bash
+      run: |
+
+                if [ -n "${{ github.event.inputs.patch }}" ]; then
+                   echo "Patch input provided. Applying patch..."
+                   echo "${{ github.event.inputs.patch }}" | base64 --decode | sed 's/\r$//'  > patch.diff
+                   echo "Decoded patch content:"
+                   cat patch.diff 
+                   echo "Apply the patch:"
+                   git apply patch.diff || {
+                     echo "Failed to apply patch"
+                     exit 1
+                   }
+                 else
+                   echo "No patch input provided. Skipping patch application."
+                 fi
+                echo "Print git diff on local repo"
+                git diff
+    - name: Run custom command
+      shell: bash
+      run: |
+         
+                if [ -n "${{ github.event.inputs.command }}" ]; then
+                   echo "Start running custom command"
+                   echo "${{ github.event.inputs.command }}"
+                   output=$(echo "${{ github.event.inputs.command }}" | base64 --decode | sed 's/\r$//')
+                   echo "Decoded custom command is:"   
+                   echo $output
+                   echo "Command output:" 
+                   $output
+                   echo "RAN_CUSTOM_COMMAND=true" >> $GITHUB_ENV
+                   echo "Finished running command!"
+                fi
+    - name: Exit if custom command was run
+      if: env.RAN_CUSTOM_COMMAND == 'true'
+      shell: bash
+      run: |
+
+                echo "Exiting job after custom command run"
+                exit 1
+    - name: Test (ces) (ces)
+      run: meson test --print-errorlogs --suite=harfbuzz -Cbuild

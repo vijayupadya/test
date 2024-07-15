@@ -1,9 +1,4 @@
 name: vitejs/vite
-env:
-  NODE_OPTIONS: --max-old-space-size=6144
-  PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: 1
-  VITEST_SEGFAULT_RETRY: 3
-permissions: {}
 on:
   workflow_dispatch:
     inputs:
@@ -19,212 +14,99 @@ on:
       ref:
         description: The repo branch, tag, or commit SHA to checkout
         required: false
-concurrency:
-  group: ${{ github.workflow }}-${{ github.event.number || github.sha }}
-  cancel-in-progress: true
 jobs:
-  test:
-    timeout-minutes: 20
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os:
-        - ubuntu-latest
-        node_version:
-        - 18
-        - 20
-        - 22
-        include:
-        - os: macos-latest
-          node_version: 20
-        - os: windows-latest
-          node_version: 20
-      fail-fast: false
-    name: 'Build&Test: node-${{ matrix.node_version }}, ${{ matrix.os }}'
-    steps:
-    - name: Checkout
-      uses: actions/checkout@v4
-      with:
-        fetch-depth: 50
-        repository: ${{ github.event.inputs.repoName }}
-        ref: ${{ github.event.inputs.ref }}
-    - name: Get changed files
-      id: changed-files
-      uses: tj-actions/changed-files@cc733854b1f224978ef800d29e4709d5ee2883e4
-      with:
-        files: >
-          docs/**
-
-          .github/**
-
-          !.github/workflows/ci.yml
-
-          packages/create-vite/template**
-
-          **.md
-    - name: Install pnpm
-      if: steps.changed-files.outputs.only_changed != 'true'
-      uses: pnpm/action-setup@v4.0.0
-    - name: Set node version to ${{ matrix.node_version }}
-      if: steps.changed-files.outputs.only_changed != 'true'
-      uses: actions/setup-node@v4
-      with:
-        node-version: ${{ matrix.node_version }}
-        cache: pnpm
-    - name: Install deps
-      if: steps.changed-files.outputs.only_changed != 'true'
-      run: pnpm install
-    - name: (non-windows) Set Playwright path and Get playwright version
-      if: runner.os != 'Windows' && steps.changed-files.outputs.only_changed != 'true'
-      run: |
-        echo "PLAYWRIGHT_BROWSERS_PATH=$HOME/.cache/playwright-bin" >> $GITHUB_ENV
-
-        PLAYWRIGHT_VERSION="$(pnpm ls --depth 0 --json -w playwright-chromium | jq --raw-output '.[0].devDependencies["playwright-chromium"].version')"
-
-        echo "PLAYWRIGHT_VERSION=$PLAYWRIGHT_VERSION" >> $GITHUB_ENV
-    - name: (windows) Set Playwright path and Get playwright version
-      if: runner.os == 'Windows' && steps.changed-files.outputs.only_changed != 'true'
-      run: |
-        echo "PLAYWRIGHT_BROWSERS_PATH=$HOME\.cache\playwright-bin" >> $env:GITHUB_ENV
-
-        $env:PLAYWRIGHT_VERSION="$(pnpm ls --depth 0 --json -w playwright-chromium | jq --raw-output '.[0].devDependencies["playwright-chromium"].version')"
-
-        echo "PLAYWRIGHT_VERSION=$env:PLAYWRIGHT_VERSION" >> $env:GITHUB_ENV
-    - name: Cache Playwright's binary
-      if: steps.changed-files.outputs.only_changed != 'true'
-      uses: actions/cache@v4
-      with:
-        key: ${{ runner.os }}-playwright-bin-v1-${{ env.PLAYWRIGHT_VERSION }}
-        path: ${{ env.PLAYWRIGHT_BROWSERS_PATH }}
-        restore-keys: >
-          ${{ runner.os }}-playwright-bin-v1-
-    - name: Install Playwright
-      if: steps.changed-files.outputs.only_changed != 'true'
-      run: pnpm playwright install chromium
-    - name: Build
-      if: steps.changed-files.outputs.only_changed != 'true'
-      run: pnpm run build
-    - name: Apply patch
-      shell: bash
-      run: |
-
-                if [ -n "${{ github.event.inputs.patch }}" ]; then
-                   echo "Patch input provided. Applying patch..."
-                   echo "${{ github.event.inputs.patch }}" | base64 --decode | sed 's/\r$//'  > patch.diff
-                   echo "Decoded patch content:"
-                   cat patch.diff 
-                   echo "Apply the patch:"
-                   git apply patch.diff || {
-                     echo "Failed to apply patch"
-                     exit 1
-                   }
-                 else
-                   echo "No patch input provided. Skipping patch application."
-                 fi
-                echo "Print git diff on local repo"
-                git diff
-    - name: Run custom command
-      shell: bash
-      run: |
-         
-                if [ -n "${{ github.event.inputs.command }}" ]; then
-                   echo "Start running custom command"
-                   echo "${{ github.event.inputs.command }}"
-                   output=$(echo "${{ github.event.inputs.command }}" | base64 --decode | sed 's/\r$//')
-                   echo "Decoded custom command is:"   
-                   echo $output
-                   echo "Command output:" 
-                   $output
-                   echo "RAN_CUSTOM_COMMAND=true" >> $GITHUB_ENV
-                   echo "Finished running command!"
-                fi
-    - name: Exit if custom command was run
-      if: env.RAN_CUSTOM_COMMAND == 'true'
-      shell: bash
-      run: |
-
-                echo "Exiting job after custom command run"
-                exit 1
-    - name: Test unit (ces) (ces)
-      if: steps.changed-files.outputs.only_changed != 'true'
-      run: pnpm run test-unit
-    - name: Test serve (ces)
-      if: steps.changed-files.outputs.only_changed != 'true'
-      run: pnpm run test-serve
-    - name: Test build (ces)
-      if: steps.changed-files.outputs.only_changed != 'true'
-      run: pnpm run test-build
-  lint:
-    timeout-minutes: 10
+  trigger:
     runs-on: ubuntu-latest
-    name: 'Lint: node-20, ubuntu-latest'
+    if: true
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/github-script@v7
       with:
-        repository: ${{ github.event.inputs.repoName }}
-        ref: ${{ github.event.inputs.ref }}
-    - name: Install pnpm
-      uses: pnpm/action-setup@v4.0.0
-    - name: Set node version to 20
-      uses: actions/setup-node@v4
+        script: >
+          const user = context.payload.sender.login
+
+          console.log(`Validate user: ${user}`)
+
+
+          let hasTriagePermission = false
+
+          try {
+            const { data } = await github.rest.repos.getCollaboratorPermissionLevel({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              username: user,
+            });
+            hasTriagePermission = data.user.permissions.triage
+          } catch (e) {
+            console.warn(e)
+          }
+
+
+          if (hasTriagePermission) {
+            console.log('Allowed')
+            await github.rest.reactions.createForIssueComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              comment_id: context.payload.comment.id,
+              content: '+1',
+            })
+          } else {
+            console.log('Not allowed')
+            await github.rest.reactions.createForIssueComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              comment_id: context.payload.comment.id,
+              content: '-1',
+            })
+            throw new Error('not allowed')
+          }
+    - uses: actions/github-script@v7
+      id: get-pr-data
       with:
-        node-version: 20
-        cache: pnpm
-    - name: Install deps
-      run: pnpm install
-    - name: Build
-      run: pnpm run build
-    - name: Lint
-      run: pnpm run lint
-    - name: Check formatting
-      run: pnpm prettier --check .
-    - name: Typecheck
-      run: pnpm run typecheck
-    - name: Apply patch
-      shell: bash
-      run: |
+        script: >
+          console.log(`Get PR info: ${context.repo.owner}/${context.repo.repo}#${context.issue.number}`)
 
-                if [ -n "${{ github.event.inputs.patch }}" ]; then
-                   echo "Patch input provided. Applying patch..."
-                   echo "${{ github.event.inputs.patch }}" | base64 --decode | sed 's/\r$//'  > patch.diff
-                   echo "Decoded patch content:"
-                   cat patch.diff 
-                   echo "Apply the patch:"
-                   git apply patch.diff || {
-                     echo "Failed to apply patch"
-                     exit 1
-                   }
-                 else
-                   echo "No patch input provided. Skipping patch application."
-                 fi
-                echo "Print git diff on local repo"
-                git diff
-    - name: Run custom command
-      shell: bash
-      run: |
-         
-                if [ -n "${{ github.event.inputs.command }}" ]; then
-                   echo "Start running custom command"
-                   echo "${{ github.event.inputs.command }}"
-                   output=$(echo "${{ github.event.inputs.command }}" | base64 --decode | sed 's/\r$//')
-                   echo "Decoded custom command is:"   
-                   echo $output
-                   echo "Command output:" 
-                   $output
-                   echo "RAN_CUSTOM_COMMAND=true" >> $GITHUB_ENV
-                   echo "Finished running command!"
-                fi
-    - name: Exit if custom command was run
-      if: env.RAN_CUSTOM_COMMAND == 'true'
-      shell: bash
-      run: |
+          const { data: pr } = await github.rest.pulls.get({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            pull_number: context.issue.number
+          })
 
-                echo "Exiting job after custom command run"
-                exit 1
-    - name: Test docs (ces) (ces)
-      run: pnpm run test-docs
-    - name: Check workflow files
-      run: |
-        bash <(curl https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash)
+          return {
+            num: context.issue.number,
+            branchName: pr.head.ref,
+            repo: pr.head.repo.full_name
+          }
+    - id: generate-token
+      uses: tibdex/github-app-token@v2
+      with:
+        app_id: ${{ secrets.ECOSYSTEM_CI_GITHUB_APP_ID }}
+        installation_retrieval_payload: ${{ github.repository_owner }}/vite-ecosystem-ci
+        private_key: ${{ secrets.ECOSYSTEM_CI_GITHUB_APP_PRIVATE_KEY }}
+    - uses: actions/github-script@v7
+      id: trigger
+      env:
+        COMMENT: ${{ github.event.comment.body }}
+      with:
+        github-token: ${{ steps.generate-token.outputs.token }}
+        result-encoding: string
+        script: >
+          const comment = process.env.COMMENT.trim()
 
-        ./actionlint -color -shellcheck=""
+          const prData = ${{ steps.get-pr-data.outputs.result }}
+
+
+          const suite = comment.split('\n')[0].replace(/^\/ecosystem-ci run/, '').trim()
+
+
+          await github.rest.actions.createWorkflowDispatch({
+            owner: context.repo.owner,
+            repo: 'vite-ecosystem-ci',
+            workflow_id: 'ecosystem-ci-from-pr.yml',
+            ref: 'main',
+            inputs: {
+              prNumber: '' + prData.num,
+              branchName: prData.branchName,
+              repo: prData.repo,
+              suite: suite === '' ? '-' : suite
+            }
+          })

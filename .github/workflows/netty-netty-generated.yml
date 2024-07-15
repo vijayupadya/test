@@ -14,216 +14,41 @@ on:
       ref:
         description: The repo branch, tag, or commit SHA to checkout
         required: false
-permissions:
-  contents: read
 env:
   MAVEN_OPTS: -Dhttp.keepAlive=false -Dmaven.wagon.http.pool=false -Dmaven.wagon.http.retryhandler.count=5 -Dmaven.wagon.httpconnectionManager.ttlSeconds=240
+permissions: read-all
 jobs:
-  verify-pr:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v4
-      with:
-        repository: ${{ github.event.inputs.repoName }}
-        ref: ${{ github.event.inputs.ref }}
-    - name: Set up JDK 8
-      uses: actions/setup-java@v4
-      with:
-        distribution: zulu
-        java-version: 8
-    - name: Cache local Maven repository
-      uses: actions/cache@v4
-      continue-on-error: true
-      with:
-        path: ~/.m2/repository
-        key: ${{ runner.os }}-maven-verify-pr-${{ hashFiles('**/pom.xml') }}
-        restore-keys: >
-          ${{ runner.os }}-maven-verify-pr-
-
-          ${{ runner.os }}-maven-
-    - name: Verify with Maven
-      run: ./mvnw -B -ntp --file pom.xml verify -DskipTests=true
-    - name: Checking bom dependency versions
-      run: ./.github/scripts/check_bom_dependencies.sh
-    - name: print JVM thread dumps when cancelled
-      uses: ./.github/actions/thread-dump-jvms
-      if: cancelled()
-  build-pr-windows:
-    runs-on: windows-2019
-    name: windows-x86_64-java11-boringssl
-    needs: verify-pr
-    steps:
-    - uses: actions/checkout@v4
-      with:
-        repository: ${{ github.event.inputs.repoName }}
-        ref: ${{ github.event.inputs.ref }}
-    - name: Set up JDK 11
-      uses: actions/setup-java@v4
-      with:
-        distribution: zulu
-        java-version: 11
-    - uses: actions/cache@v4
-      continue-on-error: true
-      with:
-        path: ~/.m2/repository
-        key: pr-windows-x86_64-maven-cache-${{ hashFiles('**/pom.xml') }}
-        restore-keys: >
-          pr-windows-x86_64-maven-cache-
-    - name: Build project
-      run: ./mvnw.cmd -B -ntp --file pom.xml clean package -Pboringssl -DskipHttp2Testsuite=true -DskipAutobahnTestsuite=true
-    - name: print JVM thread dumps when cancelled
-      uses: ./.github/actions/thread-dump-jvms
-      if: cancelled()
-    - name: Apply patch
-      shell: bash
-      run: |
-
-                if [ -n "${{ github.event.inputs.patch }}" ]; then
-                   echo "Patch input provided. Applying patch..."
-                   echo "${{ github.event.inputs.patch }}" | base64 --decode | sed 's/\r$//'  > patch.diff
-                   echo "Decoded patch content:"
-                   cat patch.diff 
-                   echo "Apply the patch:"
-                   git apply patch.diff || {
-                     echo "Failed to apply patch"
-                     exit 1
-                   }
-                 else
-                   echo "No patch input provided. Skipping patch application."
-                 fi
-                echo "Print git diff on local repo"
-                git diff
-    - name: Run custom command
-      shell: bash
-      run: |
-         
-                if [ -n "${{ github.event.inputs.command }}" ]; then
-                   echo "Start running custom command"
-                   echo "${{ github.event.inputs.command }}"
-                   output=$(echo "${{ github.event.inputs.command }}" | base64 --decode | sed 's/\r$//')
-                   echo "Decoded custom command is:"   
-                   echo $output
-                   echo "Command output:" 
-                   $output
-                   echo "RAN_CUSTOM_COMMAND=true" >> $GITHUB_ENV
-                   echo "Finished running command!"
-                fi
-    - name: Exit if custom command was run
-      if: env.RAN_CUSTOM_COMMAND == 'true'
-      shell: bash
-      run: |
-
-                echo "Exiting job after custom command run"
-                exit 1
-    - name: Upload Test Results (ces) (ces)
-      if: always()
-      uses: actions/upload-artifact@v4
-      with:
-        name: test-results-windows-x86_64-java11-boringssl
-        path: '**/target/surefire-reports/TEST-*.xml'
-    - uses: actions/upload-artifact@v4
-      if: ${{ failure() }}
-      with:
-        name: build-pr-windows-target
-        path: >
-          **/target/surefire-reports/
-
-          **/hs_err*.log
-  build-pr-cross:
-    runs-on: ubuntu-20.04
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-        - arch: aarch64
-          java_arch: arm64
-        - arch: riscv64
-    name: linux-${{ matrix.arch }}-verify-native
+  tests:
     permissions:
-      contents: read
-      packages: write
-    needs: verify-pr
-    steps:
-    - uses: actions/checkout@v4
-      with:
-        repository: ${{ github.event.inputs.repoName }}
-        ref: ${{ github.event.inputs.ref }}
-    - name: Cache local Maven repository
-      uses: actions/cache@v4
-      continue-on-error: true
-      with:
-        path: ~/.m2/repository
-        key: ${{ runner.os }}-maven-build-pr-${{ matrix.arch }}-${{ hashFiles('**/pom.xml') }}
-        restore-keys: >
-          ${{ runner.os }}-maven-build-pr-${{ matrix.arch }}-
-
-          ${{ runner.os }}-maven-
-    - uses: uraimo/run-on-arch-action@v2
-      name: Run commands
-      id: runcmd
-      with:
-        arch: ${{ matrix.arch }}
-        distro: ubuntu20.04
-        githubToken: ${{ github.token }}
-        dockerRunArgs: >
-          --volume "/home/runner/.m2/repository/:/root/.m2/repository"
-        install: >
-          apt-get update -q -y
-
-          apt-get install -q -y openjdk-11-jdk autoconf automake libtool make tar maven git
-        run: |
-          JAVA_HOME=/usr/lib/jvm/java-11-openjdk-${{ matrix.java_arch || matrix.arch }} ./mvnw -V -B -ntp -pl testsuite-native -am clean package -DskipTests=true -Dcheckstyle.skip=true -DskipNativeTestsuite=false -Dtcnative.classifier=
-  build-pr:
+      actions: read
+      checks: write
+      pull-requests: read
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
+        ignore-if-missing:
+        - false
         include:
         - setup: linux-x86_64-java8
-          docker-compose-build: -f docker/docker-compose.yaml -f docker/docker-compose.centos-6.18.yaml build
-          docker-compose-run: -f docker/docker-compose.yaml -f docker/docker-compose.centos-6.18.yaml run build-leak
+          ignore-if-missing: true
         - setup: linux-x86_64-java11
-          docker-compose-build: -f docker/docker-compose.yaml -f docker/docker-compose.centos-6.111.yaml build
-          docker-compose-run: -f docker/docker-compose.yaml -f docker/docker-compose.centos-6.111.yaml run build-leak
-        - setup: linux-x86_64-java11-graal
-          docker-compose-build: -f docker/docker-compose.yaml -f docker/docker-compose.centos-6.graalvm111.yaml build
-          docker-compose-run: -f docker/docker-compose.yaml -f docker/docker-compose.centos-6.graalvm111.yaml run build-leak
-        - setup: linux-x86_64-java17
-          docker-compose-build: -f docker/docker-compose.yaml -f docker/docker-compose.centos-7.117.yaml build
-          docker-compose-run: -f docker/docker-compose.yaml -f docker/docker-compose.centos-7.117.yaml run build-leak
-        - setup: linux-x86_64-java21
-          docker-compose-build: -f docker/docker-compose.yaml -f docker/docker-compose.centos-6.21.yaml build
-          docker-compose-run: -f docker/docker-compose.yaml -f docker/docker-compose.centos-6.21.yaml run build-leak
-        - setup: linux-x86_64-java22
-          docker-compose-build: -f docker/docker-compose.yaml -f docker/docker-compose.centos-6.22.yaml build
-          docker-compose-run: -f docker/docker-compose.yaml -f docker/docker-compose.centos-6.22.yaml run build-leak
         - setup: linux-x86_64-java11-boringssl
-          docker-compose-build: -f docker/docker-compose.yaml -f docker/docker-compose.centos-6.111.yaml build
-          docker-compose-run: -f docker/docker-compose.yaml -f docker/docker-compose.centos-6.111.yaml run build-leak-boringssl-static
-        - setup: linux-x86_64-java11-adaptive
-          docker-compose-build: -f docker/docker-compose.yaml -f docker/docker-compose.centos-6.111.yaml build
-          docker-compose-run: -f docker/docker-compose.yaml -f docker/docker-compose.centos-6.111.yaml run build-leak-adaptive
-    name: ${{ matrix.setup }} build
-    needs: verify-pr
+        - setup: linux-x86_64-java17
+        - setup: linux-x86_64-java18
+        - setup: linux-x86_64-java21
+        - setup: linux-x86_64-java22
+        - setup: windows-x86_64-java11-boringssl
+    continue-on-error: ${{ matrix.ignore-if-missing }}
     steps:
-    - uses: actions/checkout@v4
+    - name: Download Artifacts
+      uses: dawidd6/action-download-artifact@v3.0.0
       with:
-        repository: ${{ github.event.inputs.repoName }}
-        ref: ${{ github.event.inputs.ref }}
-    - name: Cache local Maven repository
-      uses: actions/cache@v4
-      continue-on-error: true
-      with:
-        path: ~/.m2/repository
-        key: ${{ runner.os }}-maven-${{ matrix.setup }}-${{ hashFiles('**/pom.xml') }}
-        restore-keys: >
-          ${{ runner.os }}-maven-${{ matrix.setup }}-
-
-          ${{ runner.os }}-maven-
-    - name: Build docker image
-      run: docker-compose ${{ matrix.docker-compose-build }}
-    - name: Build project with leak detection
-      run: docker-compose ${{ matrix.docker-compose-run }} | tee build-leak.output
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        workflow: ${{ github.event.workflow_run.workflow_id }}
+        workflow_conclusion: completed
+        commit: ${{ github.event.workflow_run.head_commit.id }}
+        name: test-results-${{ matrix.setup }}
     - name: Apply patch
       shell: bash
       run: |
@@ -265,28 +90,10 @@ jobs:
 
                 echo "Exiting job after custom command run"
                 exit 1
-    - name: Checking for test failures (ces) (ces)
-      run: ./.github/scripts/check_build_result.sh build-leak.output
-    - name: Checking for detected leak
-      run: ./.github/scripts/check_leak.sh build-leak.output
-    - name: print JVM thread dumps when cancelled
-      uses: ./.github/actions/thread-dump-jvms
-      if: cancelled()
-    - name: Upload Test Results (ces)
-      if: always()
-      uses: actions/upload-artifact@v4
+    - name: Publish Test Report (ces) (ces)
+      uses: scacap/action-surefire-report@v1.7.3
       with:
-        name: test-results-${{ matrix.setup }}
-        path: '**/target/surefire-reports/TEST-*.xml'
-    - uses: actions/upload-artifact@v4
-      if: ${{ failure() }}
-      with:
-        name: build-${{ matrix.setup }}-target
-        path: >
-          **/target/surefire-reports/
-
-          **/target/autobahntestsuite-reports/
-
-          **/hs_err*.log
-
-          **/core.*
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        report_paths: '**/target/surefire-reports/TEST-*.xml'
+        commit: ${{ github.event.workflow_run.head_commit.id }}
+        check_name: ${{ matrix.setup }} test reports

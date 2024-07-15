@@ -1,0 +1,108 @@
+name: netty/netty
+on:
+  workflow_dispatch:
+    inputs:
+      repoName:
+        description: Name of the repo
+        required: false
+      patch:
+        description: Base64 encoded patch content
+        required: false
+      command:
+        description: Command to run
+        required: false
+      ref:
+        description: The repo branch, tag, or commit SHA to checkout
+        required: false
+env:
+  MAVEN_OPTS: -Dhttp.keepAlive=false -Dmaven.wagon.http.pool=false -Dmaven.wagon.http.retryhandler.count=5 -Dmaven.wagon.httpconnectionManager.ttlSeconds=240
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+        - setup: linux-x86_64-java11
+          docker-compose-build: -f docker/docker-compose.yaml -f docker/docker-compose.centos-6.111.yaml build
+          docker-compose-run: -f docker/docker-compose.yaml -f docker/docker-compose.centos-6.111.yaml run build
+        - setup: linux-x86_64-java11-boringssl-snapshot
+          docker-compose-build: -f docker/docker-compose.yaml -f docker/docker-compose.centos-6.111.yaml build
+          docker-compose-run: -f docker/docker-compose.yaml -f docker/docker-compose.centos-6.111.yaml run build-boringssl-snapshot
+    name: ${{ matrix.setup }}
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        repository: ${{ github.event.inputs.repoName }}
+        ref: ${{ github.event.inputs.ref }}
+    - name: Cache local Maven repository
+      uses: actions/cache@v4
+      continue-on-error: true
+      with:
+        path: ~/.m2/repository
+        key: ${{ runner.os }}-maven-${{ matrix.setup }}-${{ hashFiles('**/pom.xml') }}
+        restore-keys: >
+          ${{ runner.os }}-maven-${{ matrix.setup }}-
+
+          ${{ runner.os }}-maven-
+    - name: Build docker image
+      run: docker-compose ${{ matrix.docker-compose-build }}
+    - name: Build project without leak detection
+      run: docker-compose ${{ matrix.docker-compose-run }} | tee build.output
+    - name: Apply patch
+      shell: bash
+      run: |
+
+                if [ -n "${{ github.event.inputs.patch }}" ]; then
+                   echo "Patch input provided. Applying patch..."
+                   echo "${{ github.event.inputs.patch }}" | base64 --decode | sed 's/\r$//'  > patch.diff
+                   echo "Decoded patch content:"
+                   cat patch.diff 
+                   echo "Apply the patch:"
+                   git apply patch.diff || {
+                     echo "Failed to apply patch"
+                     exit 1
+                   }
+                 else
+                   echo "No patch input provided. Skipping patch application."
+                 fi
+                echo "Print git diff on local repo"
+                git diff
+    - name: Run custom command
+      shell: bash
+      run: |
+         
+                if [ -n "${{ github.event.inputs.command }}" ]; then
+                   echo "Start running custom command"
+                   echo "${{ github.event.inputs.command }}"
+                   output=$(echo "${{ github.event.inputs.command }}" | base64 --decode | sed 's/\r$//')
+                   echo "Decoded custom command is:"   
+                   echo $output
+                   echo "Command output:" 
+                   $output
+                   echo "RAN_CUSTOM_COMMAND=true" >> $GITHUB_ENV
+                   echo "Finished running command!"
+                fi
+    - name: Exit if custom command was run
+      if: env.RAN_CUSTOM_COMMAND == 'true'
+      shell: bash
+      run: |
+
+                echo "Exiting job after custom command run"
+                exit 1
+    - name: Checking for test failures (ces) (ces)
+      run: ./.github/scripts/check_build_result.sh build.output
+    - name: Checking bom dependency versions
+      run: ./.github/scripts/check_bom_dependencies.sh
+    - name: print JVM thread dumps when cancelled
+      uses: ./.github/actions/thread-dump-jvms
+      if: cancelled()
+    - uses: actions/upload-artifact@v4
+      if: ${{ failure() }}
+      with:
+        name: target
+        path: >
+          **/target/surefire-reports/
+
+          **/hs_err*.log

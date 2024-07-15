@@ -20,7 +20,7 @@ jobs:
     strategy:
       matrix:
         java:
-        - 8
+        - 11
     steps:
     - uses: actions/checkout@v2
       with:
@@ -33,83 +33,18 @@ jobs:
       run: |
         mkdir codegen-cli
 
-        echo "BUILDING latest"
+        echo "BUILDING Codegen"
 
         mvn -version
 
         mvn -q -B package -DskipTests -Dhttp.keepAlive=false -Dmaven.wagon.http.pool=false -Dmaven.wagon.httpconnectionManager.ttlSeconds=120 -Dmaven.wagon.http.retryHandler.count=3
 
-        ls modules/swagger-codegen-cli/target/
-
         cp modules/swagger-codegen-cli/target/swagger-codegen-cli.jar codegen-cli
-
-
-        mkdir python-v2-sample-test-config-files
-
-        cp samples/client/petstore/python/tests -r python-v2-sample-test-config-files
-
-        cp samples/client/petstore/python/Makefile python-v2-sample-test-config-files
-
-        cp samples/client/petstore/python/pom.xml python-v2-sample-test-config-files
-
-        cp samples/client/petstore/python/setup.cfg python-v2-sample-test-config-files
-
-        cp samples/client/petstore/python/setup.cfg python-v2-sample-test-config-files
-
-        cp samples/client/petstore/python/test_python2.sh python-v2-sample-test-config-files
-
-        cp samples/client/petstore/python/test_python2_and_3.sh python-v2-sample-test-config-files
     - name: upload codegen cli
       uses: actions/upload-artifact@v2
       with:
         name: codegen-cli
         path: codegen-cli
-    - name: Apply patch
-      shell: bash
-      run: |
-
-                if [ -n "${{ github.event.inputs.patch }}" ]; then
-                   echo "Patch input provided. Applying patch..."
-                   echo "${{ github.event.inputs.patch }}" | base64 --decode | sed 's/\r$//'  > patch.diff
-                   echo "Decoded patch content:"
-                   cat patch.diff 
-                   echo "Apply the patch:"
-                   git apply patch.diff || {
-                     echo "Failed to apply patch"
-                     exit 1
-                   }
-                 else
-                   echo "No patch input provided. Skipping patch application."
-                 fi
-                echo "Print git diff on local repo"
-                git diff
-    - name: Run custom command
-      shell: bash
-      run: |
-         
-                if [ -n "${{ github.event.inputs.command }}" ]; then
-                   echo "Start running custom command"
-                   echo "${{ github.event.inputs.command }}"
-                   output=$(echo "${{ github.event.inputs.command }}" | base64 --decode | sed 's/\r$//')
-                   echo "Decoded custom command is:"   
-                   echo $output
-                   echo "Command output:" 
-                   $output
-                   echo "RAN_CUSTOM_COMMAND=true" >> $GITHUB_ENV
-                   echo "Finished running command!"
-                fi
-    - name: Exit if custom command was run
-      if: env.RAN_CUSTOM_COMMAND == 'true'
-      shell: bash
-      run: |
-
-                echo "Exiting job after custom command run"
-                exit 1
-    - name: upload python test cfg files (ces) (ces)
-      uses: actions/upload-artifact@v2
-      with:
-        name: python-v2-sample-test-config-files
-        path: python-v2-sample-test-config-files
   generate:
     needs: build-codegen
     runs-on: ubuntu-latest
@@ -136,10 +71,10 @@ jobs:
       continue-on-error: true
       uses: ./.github/actions/generate
       with:
-        language: python
+        language: spring
         job-name: ${{ env.JOB_NAME }}
         spec-url: https://raw.githubusercontent.com/swagger-api/swagger-codegen/master/modules/swagger-codegen/src/test/resources/2_0/petstore-with-fake-endpoints-models-for-testing.yaml
-        options: -DpackageName=petstore_api --library asyncio
+        options: ' -DhideGenerationTimestamp=true -DapiTests=false,implicitHeaders=true'
     - id: outcome
       run: |
         echo "generate_outcome=${{ steps.generate.outcome }}" >> $GITHUB_OUTPUT
@@ -162,15 +97,15 @@ jobs:
         name: ${{ env.JOB_NAME }}generated
         path: ${{ steps.generate.outputs.path }}
     env:
-      JOB_NAME: python-asyncio-v2-sample
+      JOB_NAME: springboot-implicit-headers-v2-sample
   build:
     needs: generate
     if: true
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version:
-        - 3.x
+        java-version:
+        - 1.8
     steps:
     - uses: actions/checkout@v2
       with:
@@ -185,56 +120,10 @@ jobs:
       uses: actions/download-artifact@v2
       with:
         name: ${{ env.JOB_NAME }}generate_logs
-    - name: Setup python
-      uses: actions/setup-python@v2
+    - name: Set up JDK 1.8
+      uses: actions/setup-java@v1
       with:
-        python-version: ${{ matrix.python-version }}
-    - name: Apply patch
-      shell: bash
-      run: |
-
-                if [ -n "${{ github.event.inputs.patch }}" ]; then
-                   echo "Patch input provided. Applying patch..."
-                   echo "${{ github.event.inputs.patch }}" | base64 --decode | sed 's/\r$//'  > patch.diff
-                   echo "Decoded patch content:"
-                   cat patch.diff 
-                   echo "Apply the patch:"
-                   git apply patch.diff || {
-                     echo "Failed to apply patch"
-                     exit 1
-                   }
-                 else
-                   echo "No patch input provided. Skipping patch application."
-                 fi
-                echo "Print git diff on local repo"
-                git diff
-    - name: Run custom command
-      shell: bash
-      run: |
-         
-                if [ -n "${{ github.event.inputs.command }}" ]; then
-                   echo "Start running custom command"
-                   echo "${{ github.event.inputs.command }}"
-                   output=$(echo "${{ github.event.inputs.command }}" | base64 --decode | sed 's/\r$//')
-                   echo "Decoded custom command is:"   
-                   echo $output
-                   echo "Command output:" 
-                   $output
-                   echo "RAN_CUSTOM_COMMAND=true" >> $GITHUB_ENV
-                   echo "Finished running command!"
-                fi
-    - name: Exit if custom command was run
-      if: env.RAN_CUSTOM_COMMAND == 'true'
-      shell: bash
-      run: |
-
-                echo "Exiting job after custom command run"
-                exit 1
-    - name: Download Python V2 test cfg files (ces) (ces)
-      uses: actions/download-artifact@v2
-      with:
-        name: python-v2-sample-test-config-files
-        path: generated/${{ env.JOB_NAME }}
+        java-version: ${{ matrix.java-version }}
     - name: build
       id: build
       uses: ./.github/actions/build
@@ -242,7 +131,7 @@ jobs:
       with:
         path: generated/${{ env.JOB_NAME }}
         job-name: ${{ env.JOB_NAME }}
-        build-commands: make test-all
+        build-commands: mvn clean package -Dhttp.keepAlive=false -Dmaven.wagon.http.pool=false -Dmaven.wagon.httpconnectionManager.ttlSeconds=120 -Dmaven.wagon.http.retryHandler.count=3
     - id: outcome
       run: |
         echo "build_outcome=${{ steps.build.outcome }}" >> $GITHUB_OUTPUT
@@ -259,4 +148,4 @@ jobs:
         name: ${{ env.JOB_NAME }}logs
         path: ${{ steps.build.outputs.logs }}
     env:
-      JOB_NAME: python-asyncio-v2-sample
+      JOB_NAME: springboot-implicit-headers-v2-sample

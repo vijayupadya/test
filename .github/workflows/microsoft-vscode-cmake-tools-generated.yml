@@ -16,9 +16,10 @@ on:
         required: false
 jobs:
   build:
-    runs-on: macos-latest
+    runs-on: windows-2019
     steps:
-    - uses: actions/checkout@v3
+    - name: Checkout source code
+      uses: actions/checkout@v3
       with:
         repository: ${{ github.event.inputs.repoName }}
         ref: ${{ github.event.inputs.ref }}
@@ -83,14 +84,14 @@ jobs:
         source-dir: ${{ github.workspace }}/test/fakeOutputGenerator
         configure-options: -DCMAKE_INSTALL_PREFIX:STRING=${{ github.workspace }}/test/fakebin
         install-build: true
-    - name: Run successful-build test (ces)
-      run: yarn extensionTestsSuccessfulBuild
     - name: Run backend tests (ces)
       run: yarn backendTests
     - name: Run smoke tests (ces)
       run: yarn smokeTests
     - name: Run unit tests (ces)
       run: yarn unitTests
+    - name: Run successful-build test (ces)
+      run: yarn extensionTestsSuccessfulBuild
     - name: Run single root test (ces)
       run: yarn extensionTestsSingleRoot
     - name: Run multi root test (ces)

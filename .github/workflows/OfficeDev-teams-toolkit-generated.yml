@@ -15,234 +15,46 @@ on:
         description: The repo branch, tag, or commit SHA to checkout
         required: false
 jobs:
-  func:
-    name: Build and Test OS "${{ matrix.os }}", Node.js "${{ matrix.node-version }}", Azure Functions Core Tools "${{ matrix.func-version }}"
+  build-and-test:
+    name: Build and Test OS "${{ matrix.os }}", Node.js "${{ matrix.node-version }}", Azure Functions Core Tools "${{ matrix.func-version }}", .NET SDK "${{ matrix.dotnet-version }}"
     strategy:
       matrix:
         os:
         - windows-latest
-        - macos-latest
         - macos-11
         - ubuntu-latest
         node-version:
-        - 16
         - 18
-        - 20
         func-version:
         - none
-        - 3
-        - 4
-        - 4.0.4670
-        - ~4.0.5174
-      max-parallel: 30
-    runs-on: ${{ matrix.os }}
-    steps:
-    - name: Checkout
-      uses: actions/checkout@v2
-      with:
-        fetch-depth: 0
-        repository: ${{ github.event.inputs.repoName }}
-        ref: ${{ github.event.inputs.ref }}
-    - name: Setup Node.js
-      uses: actions/setup-node@v2.1.2
-      with:
-        node-version: 18
-    - uses: pnpm/action-setup@v4
-    - name: Setup project with Retry
-      uses: nick-invision/retry@v2
-      with:
-        timeout_minutes: 15
-        max_attempts: 3
-        retry_wait_seconds: 10
-        on_retry_command: git clean -fXd .
-        command: >
-          npx lerna exec -- rm -rf node_modules
-
-          npm run setup --legacy-peer-deps
-    - name: Setup Node.js
-      uses: actions/setup-node@v2.1.2
-      with:
-        node-version: ${{ matrix.node-version }}
-    - name: Setup Azure Functions Core Tools For Linux
-      if: ${{ runner.os == 'Linux' && matrix.func-version != 'none' }}
-      run: |
-        sudo npm install --unsafe-perm -g azure-functions-core-tools@${{ matrix.func-version }}
-    - name: Setup Azure Functions Core Tools For Windows and macOS
-      if: ${{ runner.os != 'Linux' && matrix.func-version != 'none' }}
-      run: |
-        npm install -g azure-functions-core-tools@${{ matrix.func-version }}
-    - name: Apply patch
-      shell: bash
-      run: |
-
-                if [ -n "${{ github.event.inputs.patch }}" ]; then
-                   echo "Patch input provided. Applying patch..."
-                   echo "${{ github.event.inputs.patch }}" | base64 --decode | sed 's/\r$//'  > patch.diff
-                   echo "Decoded patch content:"
-                   cat patch.diff 
-                   echo "Apply the patch:"
-                   git apply patch.diff || {
-                     echo "Failed to apply patch"
-                     exit 1
-                   }
-                 else
-                   echo "No patch input provided. Skipping patch application."
-                 fi
-                echo "Print git diff on local repo"
-                git diff
-    - name: Run custom command
-      shell: bash
-      run: |
-         
-                if [ -n "${{ github.event.inputs.command }}" ]; then
-                   echo "Start running custom command"
-                   echo "${{ github.event.inputs.command }}"
-                   output=$(echo "${{ github.event.inputs.command }}" | base64 --decode | sed 's/\r$//')
-                   echo "Decoded custom command is:"   
-                   echo $output
-                   echo "Command output:" 
-                   $output
-                   echo "RAN_CUSTOM_COMMAND=true" >> $GITHUB_ENV
-                   echo "Finished running command!"
-                fi
-    - name: Exit if custom command was run
-      if: env.RAN_CUSTOM_COMMAND == 'true'
-      shell: bash
-      run: |
-
-                echo "Exiting job after custom command run"
-                exit 1
-    - name: Integration Test with xvfb (ces) (ces)
-      working-directory: ./packages/fx-core
-      if: runner.os == 'Linux'
-      run: |
-        xvfb-run -a npm run test:func-checker
-    - name: Integration Test (ces)
-      working-directory: ./packages/fx-core
-      if: runner.os != 'Linux'
-      run: |
-        npm run test:func-checker
-  node:
-    name: Build and Test OS "${{ matrix.os }}", Node.js "${{ matrix.node-version }}"
-    strategy:
-      matrix:
-        os:
-        - windows-latest
-        - macos-latest
-        - macos-11
-        - ubuntu-latest
-        node-version:
-        - 16
-        - 18
-      max-parallel: 30
-    runs-on: ${{ matrix.os }}
-    steps:
-    - name: Checkout
-      uses: actions/checkout@v2
-      with:
-        fetch-depth: 0
-        repository: ${{ github.event.inputs.repoName }}
-        ref: ${{ github.event.inputs.ref }}
-    - name: Setup Node.js
-      uses: actions/setup-node@v2.1.2
-      with:
-        node-version: 18
-    - uses: pnpm/action-setup@v4
-    - name: Setup project with Retry
-      uses: nick-invision/retry@v2
-      with:
-        timeout_minutes: 15
-        max_attempts: 3
-        retry_wait_seconds: 10
-        on_retry_command: git clean -fXd .
-        command: >
-          npx lerna exec -- rm -rf node_modules
-
-          npm run setup --legacy-peer-deps
-    - name: Setup Node.js
-      uses: actions/setup-node@v2.1.2
-      with:
-        node-version: ${{ matrix.node-version }}
-    - name: Apply patch
-      shell: bash
-      run: |
-
-                if [ -n "${{ github.event.inputs.patch }}" ]; then
-                   echo "Patch input provided. Applying patch..."
-                   echo "${{ github.event.inputs.patch }}" | base64 --decode | sed 's/\r$//'  > patch.diff
-                   echo "Decoded patch content:"
-                   cat patch.diff 
-                   echo "Apply the patch:"
-                   git apply patch.diff || {
-                     echo "Failed to apply patch"
-                     exit 1
-                   }
-                 else
-                   echo "No patch input provided. Skipping patch application."
-                 fi
-                echo "Print git diff on local repo"
-                git diff
-    - name: Run custom command
-      shell: bash
-      run: |
-         
-                if [ -n "${{ github.event.inputs.command }}" ]; then
-                   echo "Start running custom command"
-                   echo "${{ github.event.inputs.command }}"
-                   output=$(echo "${{ github.event.inputs.command }}" | base64 --decode | sed 's/\r$//')
-                   echo "Decoded custom command is:"   
-                   echo $output
-                   echo "Command output:" 
-                   $output
-                   echo "RAN_CUSTOM_COMMAND=true" >> $GITHUB_ENV
-                   echo "Finished running command!"
-                fi
-    - name: Exit if custom command was run
-      if: env.RAN_CUSTOM_COMMAND == 'true'
-      shell: bash
-      run: |
-
-                echo "Exiting job after custom command run"
-                exit 1
-    - name: Integration Test with xvfb (ces) (ces)
-      working-directory: ./packages/fx-core
-      if: runner.os == 'Linux'
-      run: |
-        xvfb-run -a npm run test:node-checker
-    - name: Integration Test (ces)
-      working-directory: ./packages/fx-core
-      if: runner.os != 'Linux'
-      run: |
-        npm run test:node-checker
-  dotnet:
-    name: Build and Test OS "${{ matrix.os }}", .NET SDK "${{ matrix.dotnet-version }}"
-    strategy:
-      matrix:
-        os:
-        - windows-latest
-        - macos-latest
-        - macos-13
-        - macos-12
-        - ubuntu-latest
         dotnet-version:
         - none
-        - 3.1.x
-        - 5.0.x
-        - 6.0.x
-        exclude:
-        - os: macos-latest
-          dotnet-version: 3.1.x
-        - os: macos-latest
-          dotnet-version: 5.0.x
-      max-parallel: 30
     runs-on: ${{ matrix.os }}
     steps:
     - name: Checkout
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
       with:
         fetch-depth: 0
         repository: ${{ github.event.inputs.repoName }}
         ref: ${{ github.event.inputs.ref }}
+    - name: Setup Node.js
+      uses: actions/setup-node@v2.1.2
+      with:
+        node-version: 18
+    - uses: pnpm/action-setup@v4
+    - name: Setup project with Retry
+      uses: nick-invision/retry@v2
+      with:
+        timeout_minutes: 10
+        max_attempts: 3
+        retry_wait_seconds: 3
+        on_retry_command: git clean -fXd .
+        command: >
+          npm run setup
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: ${{ matrix.node-version }}
     - name: Uninstalling .NET on Windows
       if: ${{ runner.os == 'Windows' }}
       run: |
@@ -251,27 +63,19 @@ jobs:
       if: ${{ runner.os == 'macOS' || runner.os == 'Linux' }}
       run: |
         ./.github/env-checker/uninstall-dotnet.sh
+    - name: Setup Azure Functions Core Tools For Linux
+      if: ${{ runner.os == 'Linux' && matrix.func-version != 'none' }}
+      run: |
+        sudo npm install --unsafe-perm -g azure-functions-core-tools@${{ matrix.func-version }}
+    - name: Setup Azure Functions Core Tools For Windows and macOS
+      if: ${{ runner.os != 'Linux' && matrix.func-version != 'none' }}
+      run: |
+        npm install -g azure-functions-core-tools@${{ matrix.func-version }}
     - name: Setup .NET SDK
       if: ${{ matrix.dotnet-version != 'none' }}
-      uses: actions/setup-dotnet@v4
+      uses: actions/setup-dotnet@v1
       with:
         dotnet-version: ${{ matrix.dotnet-version }}
-    - name: Setup Node.js
-      uses: actions/setup-node@v2.1.2
-      with:
-        node-version: 18
-    - uses: pnpm/action-setup@v4
-    - name: Setup project with Retry
-      uses: nick-invision/retry@v2
-      with:
-        timeout_minutes: 15
-        max_attempts: 3
-        retry_wait_seconds: 10
-        on_retry_command: git clean -fXd .
-        command: >
-          npx lerna exec -- rm -rf node_modules
-
-          npm run setup --legacy-peer-deps
     - name: Apply patch
       shell: bash
       run: |
@@ -317,9 +121,9 @@ jobs:
       working-directory: ./packages/fx-core
       if: runner.os == 'Linux'
       run: |
-        xvfb-run -a npm run test:dotnet-checker
+        xvfb-run -a npm run test:env-checker
     - name: Integration Test (ces)
       working-directory: ./packages/fx-core
       if: runner.os != 'Linux'
       run: |
-        npm run test:dotnet-checker
+        npm run test:env-checker

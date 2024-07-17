@@ -1,0 +1,48 @@
+name: eclipse-vertx/vert.x
+on:
+  workflow_dispatch:
+    inputs:
+      repoName:
+        description: Name of the repo
+        required: false
+      patch:
+        description: Base64 encoded patch content
+        required: false
+      command:
+        description: Command to run
+        required: false
+      ref:
+        description: The repo branch, tag, or commit SHA to checkout
+        required: false
+jobs:
+  CI:
+    strategy:
+      matrix:
+        include:
+        - os: ubuntu-latest
+          jdk: 11
+        - os: ubuntu-latest
+          jdk: 11
+          profile: -PtestNativeTransport
+        - os: ubuntu-latest
+          jdk: 11
+          profile: -PtestDomainSockets
+        - os: ubuntu-latest
+          jdk: 21
+        - os: windows-latest
+          jdk: 11
+    uses: ./.github/workflows/ci.yml
+    with:
+      branch: ${{ github.event.pull_request.head.sha || github.ref_name }}
+      jdk: ${{ matrix.jdk }}
+      os: ${{ matrix.os }}
+      profile: ${{ matrix.profile }}
+    secrets: inherit
+  Deploy:
+    if: true
+    needs: CI
+    uses: ./.github/workflows/deploy.yml
+    with:
+      branch: ${{ github.event.pull_request.head.sha || github.ref_name }}
+      jdk: 11
+    secrets: inherit

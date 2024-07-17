@@ -16,10 +16,9 @@ on:
         required: false
 jobs:
   build:
-    runs-on: windows-2019
+    runs-on: ubuntu-20.04
     steps:
-    - name: Checkout source code
-      uses: actions/checkout@v3
+    - uses: actions/checkout@v3
       with:
         repository: ${{ github.event.inputs.repoName }}
         ref: ${{ github.event.inputs.ref }}
@@ -87,15 +86,25 @@ jobs:
     - name: Run backend tests (ces)
       run: yarn backendTests
     - name: Run smoke tests (ces)
-      run: yarn smokeTests
+      uses: GabrielBB/xvfb-action@v1.6
+      with:
+        run: yarn smokeTests
     - name: Run unit tests (ces)
-      run: yarn unitTests
+      uses: GabrielBB/xvfb-action@v1.6
+      with:
+        run: yarn unitTests
     - name: Run successful-build test (ces)
-      run: yarn extensionTestsSuccessfulBuild
+      uses: GabrielBB/xvfb-action@v1.6
+      with:
+        run: yarn extensionTestsSuccessfulBuild
     - name: Run single root test (ces)
-      run: yarn extensionTestsSingleRoot
+      uses: GabrielBB/xvfb-action@v1.6
+      with:
+        run: yarn extensionTestsSingleRoot
     - name: Run multi root test (ces)
-      run: yarn extensionTestsMultiRoot
+      uses: GabrielBB/xvfb-action@v1.6
+      with:
+        run: yarn extensionTestsMultiRoot
     - name: Upload test logs if tests failed (ces)
       if: failure()
       uses: actions/upload-artifact@v3

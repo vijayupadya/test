@@ -1,0 +1,116 @@
+name: microsoft/react-native-windows-samples
+on:
+  workflow_dispatch:
+    inputs:
+      repoName:
+        description: Name of the repo
+        required: false
+      patch:
+        description: Base64 encoded patch content
+        required: false
+      command:
+        description: Command to run
+        required: false
+      ref:
+        description: The repo branch, tag, or commit SHA to checkout
+        required: false
+defaults:
+  run:
+    shell: pwsh
+jobs:
+  setupcheck:
+    name: Setup Check
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        repository: ${{ github.event.inputs.repoName }}
+        ref: ${{ github.event.inputs.ref }}
+  call-buildsample-app-service-demo:
+    name: Build App Service Demo
+    needs: setupcheck
+    strategy:
+      fail-fast: false
+      matrix:
+        sampleName:
+        - AppServiceDemo
+        configuration:
+        - Debug
+        - Release
+        platform:
+        - x86
+        - x64
+        - ARM64
+    uses: ./.github/workflows/template-buildsample.yml
+    with:
+      sampleName: ${{ matrix.sampleName }}
+      configuration: ${{ matrix.configuration }}
+      extraRunWindowsArgs: --no-deploy
+      platform: ${{ matrix.platform }}
+  call-buildsample-calculator:
+    name: Build Calculator
+    needs: setupcheck
+    strategy:
+      fail-fast: false
+      matrix:
+        sampleName:
+        - Calculator\cppwinrt
+        - Calculator\csharp
+        configuration:
+        - Debug
+        - Release
+        platform:
+        - x86
+        - x64
+        - ARM64
+    uses: ./.github/workflows/template-buildsample.yml
+    with:
+      sampleName: ${{ matrix.sampleName }}
+      configuration: ${{ matrix.configuration }}
+      platform: ${{ matrix.platform }}
+  call-buildsample-calculator-nuget:
+    name: Build Calculator NuGet
+    needs: setupcheck
+    strategy:
+      fail-fast: false
+      matrix:
+        sampleName:
+        - CalculatorNuGet
+        configuration:
+        - Debug
+        - Release
+        platform:
+        - x86
+        - x64
+        - ARM64
+    uses: ./.github/workflows/template-buildsample.yml
+    with:
+      sampleName: ${{ matrix.sampleName }}
+      configuration: ${{ matrix.configuration }}
+      platform: ${{ matrix.platform }}
+  call-buildsample-native-module-sample:
+    name: Build Native Module Sample
+    needs: setupcheck
+    strategy:
+      fail-fast: false
+      matrix:
+        sampleName:
+        - NativeModuleSample\cppwinrt
+        - NativeModuleSample\csharp
+        configuration:
+        - Debug
+        - Release
+        platform:
+        - x86
+        - x64
+        - ARM64
+    uses: ./.github/workflows/template-buildsample.yml
+    with:
+      sampleName: ${{ matrix.sampleName }}
+      configuration: ${{ matrix.configuration }}
+      platform: ${{ matrix.platform }}
+      extraRunWindowsArgs: --no-autolink --no-deploy
+  call-buildwebsite:
+    name: Build Website
+    needs: setupcheck
+    uses: ./.github/workflows/template-buildwebsite.yml

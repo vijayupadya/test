@@ -26,8 +26,8 @@ jobs:
       with:
         repository: ${{ github.event.inputs.repoName }}
         ref: ${{ github.event.inputs.ref }}
-  call-buildsample-app-service-demo:
-    name: Build App Service Demo
+  call-upgradesample-app-service-demo:
+    name: Upgrade App Service Demo
     needs: setupcheck
     strategy:
       fail-fast: false
@@ -41,14 +41,19 @@ jobs:
         - x86
         - x64
         - ARM64
-    uses: ./.github/workflows/template-buildsample.yml
+        reactNativeWindowsVersion:
+        - latest
+        - preview
+        - canary
+    uses: ./.github/workflows/template-upgradesample.yml
     with:
       sampleName: ${{ matrix.sampleName }}
+      reactNativeWindowsVersion: ${{ matrix.reactNativeWindowsVersion }}
       configuration: ${{ matrix.configuration }}
       extraRunWindowsArgs: --no-deploy
       platform: ${{ matrix.platform }}
-  call-buildsample-calculator:
-    name: Build Calculator
+  call-upgradesample-calculator:
+    name: Upgrade Calculator
     needs: setupcheck
     strategy:
       fail-fast: false
@@ -63,13 +68,20 @@ jobs:
         - x86
         - x64
         - ARM64
-    uses: ./.github/workflows/template-buildsample.yml
+        reactNativeWindowsVersion:
+        - latest
+        - preview
+        - canary
+    uses: ./.github/workflows/template-upgradesample.yml
     with:
       sampleName: ${{ matrix.sampleName }}
+      reactNativeWindowsVersion: ${{ matrix.reactNativeWindowsVersion }}
       configuration: ${{ matrix.configuration }}
       platform: ${{ matrix.platform }}
-  call-buildsample-calculator-nuget:
-    name: Build Calculator NuGet
+      runInitWindows: true
+      extraInitWindowsArgs: --language ${{ endsWith(matrix.sampleName, 'cppwinrt') && 'cpp' || 'cs' }}
+  call-upgradesample-calculator-nuget:
+    name: Upgrade Calculator NuGet
     needs: setupcheck
     strategy:
       fail-fast: false
@@ -83,13 +95,20 @@ jobs:
         - x86
         - x64
         - ARM64
-    uses: ./.github/workflows/template-buildsample.yml
+        reactNativeWindowsVersion:
+        - latest
+        - preview
+        - canary
+    uses: ./.github/workflows/template-upgradesample.yml
     with:
       sampleName: ${{ matrix.sampleName }}
+      reactNativeWindowsVersion: ${{ matrix.reactNativeWindowsVersion }}
       configuration: ${{ matrix.configuration }}
       platform: ${{ matrix.platform }}
-  call-buildsample-native-module-sample:
-    name: Build Native Module Sample
+      runInitWindows: true
+      extraInitWindowsArgs: --experimentalNuGetDependency true
+  call-upgradesample-native-module-sample:
+    name: Upgrade Native Module Sample
     needs: setupcheck
     strategy:
       fail-fast: false
@@ -104,13 +123,14 @@ jobs:
         - x86
         - x64
         - ARM64
-    uses: ./.github/workflows/template-buildsample.yml
+        reactNativeWindowsVersion:
+        - latest
+        - preview
+        - canary
+    uses: ./.github/workflows/template-upgradesample.yml
     with:
       sampleName: ${{ matrix.sampleName }}
+      reactNativeWindowsVersion: ${{ matrix.reactNativeWindowsVersion }}
       configuration: ${{ matrix.configuration }}
       platform: ${{ matrix.platform }}
       extraRunWindowsArgs: --no-autolink --no-deploy
-  call-buildwebsite:
-    name: Build Website
-    needs: setupcheck
-    uses: ./.github/workflows/template-buildwebsite.yml

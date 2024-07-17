@@ -15,60 +15,34 @@ on:
         description: The repo branch, tag, or commit SHA to checkout
         required: false
 jobs:
-  Test:
-    name: Run tests
-    runs-on: ${{ inputs.os }}
-    steps:
-    - name: Checkout
-      uses: actions/checkout@v2
-      with:
-        ref: ${{ github.event.inputs.ref }}
-        repository: ${{ github.event.inputs.repoName }}
-    - name: Install JDK
-      uses: actions/setup-java@v2
-      with:
-        java-version: ${{ inputs.jdk }}
-        distribution: temurin
-    - name: Apply patch
-      shell: bash
-      run: |
-
-                if [ -n "${{ github.event.inputs.patch }}" ]; then
-                   echo "Patch input provided. Applying patch..."
-                   echo "${{ github.event.inputs.patch }}" | base64 --decode | sed 's/\r$//'  > patch.diff
-                   echo "Decoded patch content:"
-                   cat patch.diff 
-                   echo "Apply the patch:"
-                   git apply patch.diff || {
-                     echo "Failed to apply patch"
-                     exit 1
-                   }
-                 else
-                   echo "No patch input provided. Skipping patch application."
-                 fi
-                echo "Print git diff on local repo"
-                git diff
-    - name: Run custom command
-      shell: bash
-      run: |
-         
-                if [ -n "${{ github.event.inputs.command }}" ]; then
-                   echo "Start running custom command"
-                   echo "${{ github.event.inputs.command }}"
-                   output=$(echo "${{ github.event.inputs.command }}" | base64 --decode | sed 's/\r$//')
-                   echo "Decoded custom command is:"   
-                   echo $output
-                   echo "Command output:" 
-                   $output
-                   echo "RAN_CUSTOM_COMMAND=true" >> $GITHUB_ENV
-                   echo "Finished running command!"
-                fi
-    - name: Exit if custom command was run
-      if: env.RAN_CUSTOM_COMMAND == 'true'
-      shell: bash
-      run: |
-
-                echo "Exiting job after custom command run"
-                exit 1
-    - name: Run tests (ces) (ces)
-      run: mvn -s .github/maven-ci-settings.xml -q clean verify -B ${{ inputs.profile }}
+  CI:
+    strategy:
+      matrix:
+        include:
+        - os: ubuntu-latest
+          jdk: 11
+        - os: ubuntu-latest
+          jdk: 11
+          profile: -PtestNativeTransport
+        - os: ubuntu-latest
+          jdk: 11
+          profile: -PtestDomainSockets
+        - os: ubuntu-latest
+          jdk: 21
+        - os: windows-latest
+          jdk: 11
+    uses: ./.github/workflows/ci.yml
+    with:
+      branch: ${{ github.event.pull_request.head.sha || github.ref_name }}
+      jdk: ${{ matrix.jdk }}
+      os: ${{ matrix.os }}
+      profile: ${{ matrix.profile }}
+    secrets: inherit
+  Deploy:
+    if: true
+    needs: CI
+    uses: ./.github/workflows/deploy.yml
+    with:
+      branch: ${{ github.event.pull_request.head.sha || github.ref_name }}
+      jdk: 11
+    secrets: inherit

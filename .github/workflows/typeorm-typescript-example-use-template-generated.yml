@@ -19,19 +19,25 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
+        os:
+        - ubuntu-latest
+        - windows-latest
         node-version:
-        - 14.x
-        - 16.x
-        - 18.x
+        - 22
+        - 20
+        - 18
+        - 16
+        - 14
     steps:
     - uses: actions/checkout@v4
       with:
         repository: ${{ github.event.inputs.repoName }}
         ref: ${{ github.event.inputs.ref }}
-    - name: Set up Node.js \${{ matrix.node-version }}
+    - name: Set up Node.js ${{ matrix.node-version }}
       uses: actions/setup-node@v3
       with:
-        node-version: '\${{ matrix.node-version }}'
+        node-version: ${{ matrix.node-version }}
+        check-latest: true
     - name: Install dependencies with npm or pnpm
       run: |
         if [ -f package-lock.json ]; then

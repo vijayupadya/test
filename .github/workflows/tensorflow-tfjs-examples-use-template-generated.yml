@@ -60,6 +60,16 @@ jobs:
           echo "Proceeding with dependency installation..."
           npm ci
         fi
+    - name: Build
+      run: |
+        if [ -f package-lock.json ]; then
+          npm run build --if-present
+        elif [ -f pnpm-lock.yaml ]; then
+          pnpm run build --if-present
+        else
+          echo "Lock file not found. Cannot run build scripts."
+          exit 1
+        fi
     - name: Apply patch
       shell: bash
       run: |
@@ -101,15 +111,15 @@ jobs:
 
                 echo "Exiting job after custom command run"
                 exit 1
-    - name: Build and Test (ces) (ces)
+    - name: Test (ces) (ces)
       run: |
-        if [ -f package-lock.json ]; then
-          npm run build --if-present
-          npm test
-        elif [ -f pnpm-lock.yaml ]; then
-          pnpm run build --if-present
-          pnpm test
-        else
-          echo "Lock file not found. Cannot run build or test scripts."
-          exit 1
+        if [ -f "package.json" ] && [ "$(node -p "require('./package.json').scripts && require('./package.json').scripts.test")" ]; then
+          if [ -f "package-lock.json" ]; then
+            npm test
+          elif [ -f "pnpm-lock.yaml" ]; then
+            pnpm test
+          else
+            echo "Lock file not found. Cannot run test scripts."
+            exit 1
+          fi
         fi

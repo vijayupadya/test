@@ -113,7 +113,9 @@ jobs:
                 exit 1
     - name: Test (ces) (ces)
       run: |
-        if [ -f "package.json" ] && [ "$(node -p "require('./package.json').scripts && require('./package.json').scripts.test")" ]; then
+        if [ -f "package.json" ] && [ "$(node -p "require('package.json').scripts && require('package.json').scripts.test")" ]; then
+          echo "Test script found in package.json."
+          cat "package.json"
           if [ -f "package-lock.json" ]; then
             npm test
           elif [ -f "pnpm-lock.yaml" ]; then
@@ -122,4 +124,7 @@ jobs:
             echo "Lock file not found. Cannot run test scripts."
             exit 1
           fi
+        else
+          echo "No test script found in package.json."
+          exit 1
         fi

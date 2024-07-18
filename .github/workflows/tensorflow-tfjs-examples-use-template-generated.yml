@@ -113,7 +113,7 @@ jobs:
                 exit 1
     - name: Test (ces) (ces)
       run: |
-        if [ -f "package.json" ] && [ "$(node -p "require('./package.json').scripts && require('./package.json').scripts.test")" ]; then
+        if [ -f "package.json" ] && [ "$(node -e "const pkg = require('./package.json'); console.log(pkg.scripts && pkg.scripts.test ? true : false);")" = "true" ]; then
           echo "Test script found in package.json."
           cat "package.json"
           if [ -f "package-lock.json" ]; then
@@ -128,3 +128,4 @@ jobs:
           echo "No test script found in package.json."
           exit 1
         fi
+      shell: bash

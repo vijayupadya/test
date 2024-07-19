@@ -52,7 +52,6 @@ jobs:
 
         echo "package_json_path=$(dirname "$PACKAGE_JSON_PATH")" >> $GITHUB_ENV
       shell: bash
-    - name: Run npm install
     - name: Check for package-lock.json
       run: |
         if [ ! -f package-lock.json ]; then

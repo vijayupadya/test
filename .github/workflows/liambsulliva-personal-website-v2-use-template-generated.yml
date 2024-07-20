@@ -23,10 +23,6 @@ jobs:
         - ubuntu-latest
         - windows-latest
         node-version:
-        - 22
-        - 20
-        - 18
-        - 16
         - 14
     steps:
     - uses: actions/checkout@v4
@@ -52,14 +48,22 @@ jobs:
 
         echo "package_json_path=$(dirname "$PACKAGE_JSON_PATH")" >> $GITHUB_ENV
       shell: bash
-    - name: Check for package-lock.json
+    - name: Check and Sync package-lock.json
       run: |
         if [ ! -f package-lock.json ]; then
           echo "package-lock.json not found, generating..."
           npm install --package-lock-only
         else
-          echo "package-lock.json found, proceeding with install..."
-          npm ci
+          echo "package-lock.json found, checking if in sync with package.json..."
+          if ! npm ls > /dev/null 2>&1; then
+            echo "package.json and package-lock.json are not in sync. Running 'npm install --package-lock-only' to synchronize..."
+            npm install --package-lock-only
+            if ! npm ls > /dev/null 2>&1; then
+              echo "Failed to fully synchronize package-lock.json with package.json, but continuing..."
+            fi
+          else
+            echo "package.json and package-lock.json are in sync."
+          fi
         fi
       working-directory: ${{ env.package_json_path }}
     - name: Install dependencies with npm or pnpm

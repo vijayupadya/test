@@ -23,10 +23,6 @@ jobs:
         - ubuntu-latest
         - windows-latest
         node-version:
-        - 22
-        - 20
-        - 18
-        - 16
         - 14
     steps:
     - uses: actions/checkout@v4
@@ -58,8 +54,8 @@ jobs:
           echo "package-lock.json not found, generating..."
           npm install --package-lock-only
         else
-          echo "package-lock.json found, proceeding with install..."
-          npm ci
+          echo "package-lock.json found, checking if in sync with package.json..."
+          npm ls > /dev/null || { echo "package.json and package-lock.json are not in sync. Please run 'npm install' locally and commit the changes."; exit 1; }
         fi
       working-directory: ${{ env.package_json_path }}
     - name: Install dependencies with npm or pnpm

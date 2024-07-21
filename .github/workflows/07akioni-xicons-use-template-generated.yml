@@ -61,8 +61,8 @@ jobs:
           echo "pnpm-lock.yaml found. Install pnpm then checking if in sync with package.json..."
           npm install -g pnpm
           if ! pnpm list > /dev/null 2>&1; then
-            echo "package.json and pnpm-lock.yaml are not in sync. Running 'pnpm install --no-frozen-lockfile' to synchronize..."
-            pnpm install --no-frozen-lockfile
+            echo "package.json and pnpm-lock.yaml are not in sync. Try running 'pnpm install' to synchronize..."
+            pnpm install --frozen-lockfile || pnpm install --no-frozen-lockfile || true
             if ! pnpm list > /dev/null 2>&1; then
               echo "Failed to fully synchronize pnpm-lock.yaml with package.json, but continuing..."
             fi

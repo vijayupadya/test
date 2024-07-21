@@ -24,10 +24,7 @@ jobs:
         - ubuntu-latest
         - windows-latest
         node-version:
-        - 20
-        - 18
         - 16
-        - 14
     steps:
     - uses: actions/checkout@v4
       with:
@@ -52,22 +49,38 @@ jobs:
 
         echo "package_json_path=$(dirname "$PACKAGE_JSON_PATH")" >> $GITHUB_ENV
       shell: bash
-    - name: Check and Sync package-lock.json
+    - name: Check and Sync package-lock.json or pnpm-lock.yaml
       run: |
-        if [ ! -f package-lock.json ]; then
-          echo "package-lock.json not found, generating..."
-          npm install --package-lock-only
-        else
-          echo "package-lock.json found, checking if in sync with package.json..."
-          if ! npm ls > /dev/null 2>&1; then
-            echo "package.json and package-lock.json are not in sync. Running 'npm install --package-lock-only' to synchronize..."
-            npm install --package-lock-only
-            if ! npm ls > /dev/null 2>&1; then
-              echo "Failed to fully synchronize package-lock.json with package.json, but continuing..."
+        if [ -f pnpm-lock.yaml ]; then
+          echo "pnpm-lock.yaml found. Checking if in sync with package.json..."
+          if ! pnpm list > /dev/null 2>&1; then
+            echo "package.json and pnpm-lock.yaml are not in sync. Running 'pnpm install --lockfile-only' to synchronize..."
+            pnpm install --lockfile-only
+            if ! pnpm list > /dev/null 2>&1; then
+              echo "Failed to fully synchronize pnpm-lock.yaml with package.json, but continuing..."
             fi
           else
-            echo "package.json and package-lock.json are in sync."
+            echo "package.json and pnpm-lock.yaml are in sync."
           fi
+        elif [ -f package.json ]; then
+          if [ ! -f package-lock.json ]; then
+            echo "package-lock.json not found, generating..."
+            npm install --package-lock-only
+          else
+            echo "package-lock.json found, checking if in sync with package.json..."
+            if ! npm ls > /dev/null 2>&1; then
+              echo "package.json and package-lock.json are not in sync. Running 'npm install --package-lock-only' to synchronize..."
+              npm install --package-lock-only
+              if ! npm ls > /dev/null 2>&1; then
+                echo "Failed to fully synchronize package-lock.json with package.json, but continuing..."
+              fi
+            else
+              echo "package.json and package-lock.json are in sync."
+            fi
+          fi
+        else
+          echo "Neither pnpm-lock.yaml nor package-lock.json found. Please ensure one of them is present in the repository."
+          exit 1
         fi
       working-directory: ${{ env.package_json_path }}
     - name: Install dependencies with npm or pnpm

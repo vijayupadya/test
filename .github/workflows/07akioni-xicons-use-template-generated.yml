@@ -38,9 +38,15 @@ jobs:
     - name: Search for package.json
       id: search-package-json
       run: |
-        # Search for package.json file in the repository
+        # Check if package.json exists in the root folder
 
-        PACKAGE_JSON_PATH=$(find . -name 'package.json' | head -n 1)
+        if [ -f "./package.json" ]; then
+          PACKAGE_JSON_PATH="./package.json"
+        else
+          # Search for package.json file in the repository if not found in root
+          PACKAGE_JSON_PATH=$(find . -name 'package.json' | head -n 1)
+        fi
+
 
         if [ -z "$PACKAGE_JSON_PATH" ]; then
           echo "No package.json found"

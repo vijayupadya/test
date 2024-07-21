@@ -25,6 +25,7 @@ jobs:
         - windows-latest
         node-version:
         - 18
+        - 14
     steps:
     - uses: actions/checkout@v4
       with:

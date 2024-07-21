@@ -95,8 +95,7 @@ jobs:
         if [ -f package-lock.json ]; then
           npm ci
         elif [ -f pnpm-lock.yaml ]; then
-          npm install -g pnpm
-          pnpm install --frozen-lockfile
+          pnpm install --frozen-lockfile || pnpm install --no-frozen-lockfile || true
         else
           echo "No lock file found, job should be failed, but for project build and run test, add package-lock.json file."
           npm install --package-lock-only

@@ -18,11 +18,14 @@ jobs:
   build:
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         os:
         - ubuntu-latest
         - windows-latest
         node-version:
+        - 18
+        - 16
         - 14
     steps:
     - uses: actions/checkout@v4
@@ -37,9 +40,15 @@ jobs:
     - name: Search for package.json
       id: search-package-json
       run: |
-        # Search for package.json file in the repository
+        # Check if package.json exists in the root folder
 
-        PACKAGE_JSON_PATH=$(find . -name 'package.json' | head -n 1)
+        if [ -f "./package.json" ]; then
+          PACKAGE_JSON_PATH="./package.json"
+        else
+          # Search for package.json file in the repository if not found in root
+          PACKAGE_JSON_PATH=$(find . -name 'package.json' | head -n 1)
+        fi
+
 
         if [ -z "$PACKAGE_JSON_PATH" ]; then
           echo "No package.json found"
@@ -48,31 +57,70 @@ jobs:
 
         echo "package_json_path=$(dirname "$PACKAGE_JSON_PATH")" >> $GITHUB_ENV
       shell: bash
-    - name: Check and Sync package-lock.json
+    - name: Enable Corepack and Install correct package manager version
       run: |
-        if [ ! -f package-lock.json ]; then
-          echo "package-lock.json not found, generating..."
-          npm install --package-lock-only
-        else
-          echo "package-lock.json found, checking if in sync with package.json..."
-          if ! npm ls > /dev/null 2>&1; then
-            echo "package.json and package-lock.json are not in sync. Running 'npm install --package-lock-only' to synchronize..."
-            npm install --package-lock-only
-            if ! npm ls > /dev/null 2>&1; then
-              echo "Failed to fully synchronize package-lock.json with package.json, but continuing..."
+        PACKAGE_MANAGER=$(node -e "const pkg = require('${{ env.package_json_path }}/package.json'); console.log(pkg.packageManager);")
+
+        if [[ $PACKAGE_MANAGER == yarn@* ]]; then
+          corepack enable
+          PACKAGE_MANAGER_VERSION=${PACKAGE_MANAGER#yarn@}
+          corepack prepare yarn@$PACKAGE_MANAGER_VERSION --activate
+        elif [[ $PACKAGE_MANAGER == pnpm@* ]]; then
+          corepack enable
+          PACKAGE_MANAGER_VERSION=${PACKAGE_MANAGER#pnpm@}
+          corepack prepare pnpm@$PACKAGE_MANAGER_VERSION --activate
+        fi
+    - name: Check and Sync yarn.lock, package-lock.json or pnpm-lock.yaml
+      run: |
+        if [ -f yarn.lock ]; then
+          echo "yarn.lock found. Checking if in sync with package.json..."
+          if ! yarn check --integrity; then
+            echo "yarn.lock is not in sync with package.json. Running 'yarn install' to synchronize..."
+            yarn install --frozen-lockfile || yarn install || true
+          else
+            echo "yarn.lock and package.json are in sync."
+          fi
+        elif [ -f pnpm-lock.yaml ]; then
+          echo "pnpm-lock.yaml found. Install pnpm then checking if in sync with package.json..."
+          npm install -g pnpm
+          if ! pnpm list > /dev/null 2>&1; then
+            echo "package.json and pnpm-lock.yaml are not in sync. Try running 'pnpm install' to synchronize..."
+            pnpm install --frozen-lockfile || pnpm install --no-frozen-lockfile || true
+            if ! pnpm list > /dev/null 2>&1; then
+              echo "Failed to fully synchronize pnpm-lock.yaml with package.json, but continuing..."
             fi
           else
-            echo "package.json and package-lock.json are in sync."
+            echo "package.json and pnpm-lock.yaml are in sync."
           fi
+        elif [ -f package.json ]; then
+          if [ ! -f package-lock.json ]; then
+            echo "package-lock.json not found, generating without run any script to avoid missing package issue ..."
+            npm install --package-lock-only --ignore-scripts
+          else
+            echo "package-lock.json found, checking if in sync with package.json..."
+            if ! npm ls > /dev/null 2>&1; then
+              echo "package.json and package-lock.json are not in sync. Running npm without run any script to avoid missing package issue to synchronize..."
+              npm install --package-lock-only --ignore-scripts
+              if ! npm ls > /dev/null 2>&1; then
+                echo "Failed to fully synchronize package-lock.json with package.json, but continuing..."
+              fi
+            else
+              echo "package.json and package-lock.json are in sync."
+            fi
+          fi
+        else
+          echo "Neither yarn.lock, pnpm-lock.yaml nor package-lock.json found. Please ensure one of them is present in the repository."
+          exit 1
         fi
       working-directory: ${{ env.package_json_path }}
     - name: Install dependencies with npm or pnpm
       run: |
-        if [ -f package-lock.json ]; then
+        if [ -f yarn.lock ]; then
+          yarn install --frozen-lockfile || yarn install || true
+        elif [ -f package-lock.json ]; then
           npm ci
         elif [ -f pnpm-lock.yaml ]; then
-          npm install -g pnpm
-          pnpm install --frozen-lockfile
+          pnpm install --frozen-lockfile || pnpm install --no-frozen-lockfile || true
         else
           echo "No lock file found, job should be failed, but for project build and run test, add package-lock.json file."
           npm install --package-lock-only
@@ -82,13 +130,19 @@ jobs:
       working-directory: ${{ env.package_json_path }}
     - name: Build
       run: |
-        if [ -f package-lock.json ]; then
-          npm run build --if-present
-        elif [ -f pnpm-lock.yaml ]; then
-          pnpm run build --if-present
+        if [ -f "package.json" ] && [ "$(node -e "const pkg = require('./package.json'); console.log(pkg.scripts && pkg.scripts.build ? 'true' : 'false');")" = "true" ]; then
+          if [ -f yarn.lock ]; then
+            yarn run build
+          elif [ -f "package-lock.json" ]; then
+            npm run build
+          elif [ -f "pnpm-lock.yaml" ]; then
+            pnpm run build
+          else
+            echo "Lock file not found. Cannot run build scripts."
+            exit 1
+          fi
         else
-          echo "Lock file not found. Cannot run build scripts."
-          exit 1
+          echo "No build script found in package.json"
         fi
       working-directory: ${{ env.package_json_path }}
     - name: Apply patch
@@ -136,8 +190,9 @@ jobs:
       run: |
         if [ -f "package.json" ] && [ "$(node -e "const pkg = require('./package.json'); console.log(pkg.scripts && pkg.scripts.test ? true : false);")" = "true" ]; then
           echo "Test script found in package.json."
-          cat "package.json"
-          if [ -f "package-lock.json" ]; then
+          if [ -f yarn.lock ]; then
+            yarn test
+          elif [ -f "package-lock.json" ]; then
             npm test
           elif [ -f "pnpm-lock.yaml" ]; then
             pnpm test

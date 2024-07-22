@@ -59,13 +59,15 @@ jobs:
       shell: bash
     - name: Enable Corepack and Install correct package manager version
       run: |
-        if grep -q '"packageManager": "yarn@' ${{ env.package_json_path }}/package.json; then
+        PACKAGE_MANAGER=$(node -e "const pkg = require('${{ env.package_json_path }}/package.json'); console.log(pkg.packageManager);")
+
+        if [[ $PACKAGE_MANAGER == yarn@* ]]; then
           corepack enable
-          PACKAGE_MANAGER_VERSION=$(grep -o '"packageManager": "yarn@[0-9\.]*"' ${{ env.package_json_path }}/package.json | cut -d'"' -f4)
+          PACKAGE_MANAGER_VERSION=${PACKAGE_MANAGER#yarn@}
           corepack prepare yarn@$PACKAGE_MANAGER_VERSION --activate
-        elif grep -q '"packageManager": "pnpm@' ${{ env.package_json_path }}/package.json; then
+        elif [[ $PACKAGE_MANAGER == pnpm@* ]]; then
           corepack enable
-          PACKAGE_MANAGER_VERSION=$(grep -o '"packageManager": "pnpm@[0-9\.]*"' ${{ env.package_json_path }}/package.json | cut -d'"' -f4)
+          PACKAGE_MANAGER_VERSION=${PACKAGE_MANAGER#pnpm@}
           corepack prepare pnpm@$PACKAGE_MANAGER_VERSION --activate
         fi
     - name: Check and Sync yarn.lock, package-lock.json or pnpm-lock.yaml

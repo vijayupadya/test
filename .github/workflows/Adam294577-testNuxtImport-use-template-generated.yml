@@ -72,13 +72,13 @@ jobs:
           fi
         elif [ -f package.json ]; then
           if [ ! -f package-lock.json ]; then
-            echo "package-lock.json not found, generating..."
-            npm install --package-lock-only
+            echo "package-lock.json not found, generating without run any script to avoid missing package issue ..."
+            npm install --package-lock-only --ignore-scripts
           else
             echo "package-lock.json found, checking if in sync with package.json..."
             if ! npm ls > /dev/null 2>&1; then
-              echo "package.json and package-lock.json are not in sync. Running 'npm install --package-lock-only' to synchronize..."
-              npm install --package-lock-only
+              echo "package.json and package-lock.json are not in sync. Running npm without run any script to avoid missing package issue to synchronize..."
+              npm install --package-lock-only --ignore-scripts
               if ! npm ls > /dev/null 2>&1; then
                 echo "Failed to fully synchronize package-lock.json with package.json, but continuing..."
               fi

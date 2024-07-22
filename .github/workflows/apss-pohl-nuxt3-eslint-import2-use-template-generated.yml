@@ -57,7 +57,18 @@ jobs:
 
         echo "package_json_path=$(dirname "$PACKAGE_JSON_PATH")" >> $GITHUB_ENV
       shell: bash
-    - name: Check and Sync package-lock.json or pnpm-lock.yaml
+    - name: Enable Corepack and Install correct package manager version
+      run: |
+        if grep -q '"packageManager": "yarn@' ${{ env.package_json_path }}/package.json; then
+          corepack enable
+          PACKAGE_MANAGER_VERSION=$(grep -o '"packageManager": "yarn@[0-9\.]*"' ${{ env.package_json_path }}/package.json | cut -d'"' -f4)
+          corepack prepare yarn@$PACKAGE_MANAGER_VERSION --activate
+        elif grep -q '"packageManager": "pnpm@' ${{ env.package_json_path }}/package.json; then
+          corepack enable
+          PACKAGE_MANAGER_VERSION=$(grep -o '"packageManager": "pnpm@[0-9\.]*"' ${{ env.package_json_path }}/package.json | cut -d'"' -f4)
+          corepack prepare pnpm@$PACKAGE_MANAGER_VERSION --activate
+        fi
+    - name: Check and Sync yarn.lock, package-lock.json or pnpm-lock.yaml
       run: |
         if [ -f yarn.lock ]; then
           echo "yarn.lock found. Checking if in sync with package.json..."

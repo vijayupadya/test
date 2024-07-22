@@ -25,6 +25,7 @@ jobs:
         - windows-latest
         node-version:
         - 18
+        - 16
         - 14
     steps:
     - uses: actions/checkout@v4
@@ -56,9 +57,30 @@ jobs:
 
         echo "package_json_path=$(dirname "$PACKAGE_JSON_PATH")" >> $GITHUB_ENV
       shell: bash
-    - name: Check and Sync package-lock.json or pnpm-lock.yaml
+    - name: Enable Corepack and Install correct package manager version
       run: |
-        if [ -f pnpm-lock.yaml ]; then
+        PACKAGE_MANAGER=$(node -e "const pkg = require('${{ env.package_json_path }}/package.json'); console.log(pkg.packageManager);")
+
+        if [[ $PACKAGE_MANAGER == yarn@* ]]; then
+          corepack enable
+          PACKAGE_MANAGER_VERSION=${PACKAGE_MANAGER#yarn@}
+          corepack prepare yarn@$PACKAGE_MANAGER_VERSION --activate
+        elif [[ $PACKAGE_MANAGER == pnpm@* ]]; then
+          corepack enable
+          PACKAGE_MANAGER_VERSION=${PACKAGE_MANAGER#pnpm@}
+          corepack prepare pnpm@$PACKAGE_MANAGER_VERSION --activate
+        fi
+    - name: Check and Sync yarn.lock, package-lock.json or pnpm-lock.yaml
+      run: |
+        if [ -f yarn.lock ]; then
+          echo "yarn.lock found. Checking if in sync with package.json..."
+          if ! yarn check --integrity; then
+            echo "yarn.lock is not in sync with package.json. Running 'yarn install' to synchronize..."
+            yarn install --frozen-lockfile || yarn install || true
+          else
+            echo "yarn.lock and package.json are in sync."
+          fi
+        elif [ -f pnpm-lock.yaml ]; then
           echo "pnpm-lock.yaml found. Install pnpm then checking if in sync with package.json..."
           npm install -g pnpm
           if ! pnpm list > /dev/null 2>&1; then
@@ -87,13 +109,15 @@ jobs:
             fi
           fi
         else
-          echo "Neither pnpm-lock.yaml nor package-lock.json found. Please ensure one of them is present in the repository."
+          echo "Neither yarn.lock, pnpm-lock.yaml nor package-lock.json found. Please ensure one of them is present in the repository."
           exit 1
         fi
       working-directory: ${{ env.package_json_path }}
     - name: Install dependencies with npm or pnpm
       run: |
-        if [ -f package-lock.json ]; then
+        if [ -f yarn.lock ]; then
+          yarn install --frozen-lockfile || yarn install || true
+        elif [ -f package-lock.json ]; then
           npm ci
         elif [ -f pnpm-lock.yaml ]; then
           pnpm install --frozen-lockfile || pnpm install --no-frozen-lockfile || true
@@ -107,7 +131,9 @@ jobs:
     - name: Build
       run: |
         if [ -f "package.json" ] && [ "$(node -e "const pkg = require('./package.json'); console.log(pkg.scripts && pkg.scripts.build ? 'true' : 'false');")" = "true" ]; then
-          if [ -f "package-lock.json" ]; then
+          if [ -f yarn.lock ]; then
+            yarn run build
+          elif [ -f "package-lock.json" ]; then
             npm run build
           elif [ -f "pnpm-lock.yaml" ]; then
             pnpm run build
@@ -164,8 +190,9 @@ jobs:
       run: |
         if [ -f "package.json" ] && [ "$(node -e "const pkg = require('./package.json'); console.log(pkg.scripts && pkg.scripts.test ? true : false);")" = "true" ]; then
           echo "Test script found in package.json."
-          cat "package.json"
-          if [ -f "package-lock.json" ]; then
+          if [ -f yarn.lock ]; then
+            yarn test
+          elif [ -f "package-lock.json" ]; then
             npm test
           elif [ -f "pnpm-lock.yaml" ]; then
             pnpm test

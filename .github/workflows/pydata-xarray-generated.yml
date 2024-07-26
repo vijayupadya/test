@@ -1,0 +1,216 @@
+name: pydata/xarray
+on:
+  workflow_dispatch:
+    inputs:
+      repoName:
+        description: Name of the repo
+        required: false
+      patch:
+        description: Base64 encoded patch content
+        required: false
+      command:
+        description: Command to run
+        required: false
+      ref:
+        description: The repo branch, tag, or commit SHA to checkout
+        required: false
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+env:
+  FORCE_COLOR: 3
+jobs:
+  detect-ci-trigger:
+    name: detect ci trigger
+    runs-on: ubuntu-latest
+    if: true
+    outputs:
+      triggered: ${{ steps.detect-trigger.outputs.trigger-found }}
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 2
+        repository: ${{ github.event.inputs.repoName }}
+        ref: ${{ github.event.inputs.ref }}
+    - uses: xarray-contrib/ci-trigger@v1
+      id: detect-trigger
+      with:
+        keyword: '[skip-ci]'
+  test:
+    name: ${{ matrix.os }} py${{ matrix.python-version }} ${{ matrix.env }}
+    runs-on: ${{ matrix.os }}
+    needs: detect-ci-trigger
+    if: true
+    env:
+      ZARR_V3_EXPERIMENTAL_API: 1
+    defaults:
+      run:
+        shell: bash -l {0}
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+        - ubuntu-latest
+        - macos-latest
+        - windows-latest
+        python-version:
+        - 3.9
+        - 3.12
+        env:
+        - ''
+        include:
+        - env: bare-minimum
+          python-version: 3.9
+          os: ubuntu-latest
+        - env: min-all-deps
+          python-version: 3.9
+          os: ubuntu-latest
+        - env: all-but-dask
+          python-version: 3.11
+          os: ubuntu-latest
+        - env: flaky
+          python-version: 3.12
+          os: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        repository: ${{ github.event.inputs.repoName }}
+        ref: ${{ github.event.inputs.ref }}
+    - name: Set environment variables
+      run: |
+        echo "TODAY=$(date +'%Y-%m-%d')" >> $GITHUB_ENV
+
+
+        if [[ ${{ matrix.os }} == windows* ]] ;
+
+        then
+          if [[ ${{ matrix.python-version }} != "3.13" ]]; then
+            echo "CONDA_ENV_FILE=ci/requirements/environment-windows.yml" >> $GITHUB_ENV
+          else
+            echo "CONDA_ENV_FILE=ci/requirements/environment-windows-3.13.yml" >> $GITHUB_ENV
+          fi
+        elif [[ "${{ matrix.env }}" != "" ]] ;
+
+        then
+          if [[ "${{ matrix.env }}" == "flaky" ]] ;
+          then
+            echo "CONDA_ENV_FILE=ci/requirements/environment.yml" >> $GITHUB_ENV
+            echo "PYTEST_ADDOPTS=-m 'flaky or network' --run-flaky --run-network-tests -W default" >> $GITHUB_ENV
+          else
+            echo "CONDA_ENV_FILE=ci/requirements/${{ matrix.env }}.yml" >> $GITHUB_ENV
+          fi
+          if [[ "${{ matrix.env }}" == "min-all-deps" ]] ;
+          then
+            # Don't raise on warnings
+            echo "PYTEST_ADDOPTS=-W default" >> $GITHUB_ENV
+          fi
+        else
+          if [[ ${{ matrix.python-version }} != "3.13" ]]; then
+            echo "CONDA_ENV_FILE=ci/requirements/environment.yml" >> $GITHUB_ENV
+          else
+            echo "CONDA_ENV_FILE=ci/requirements/environment-3.13.yml" >> $GITHUB_ENV
+          fi
+        fi
+
+
+        echo "PYTHON_VERSION=${{ matrix.python-version }}" >> $GITHUB_ENV
+    - name: Setup micromamba
+      uses: mamba-org/setup-micromamba@v1
+      with:
+        environment-file: ${{ env.CONDA_ENV_FILE }}
+        environment-name: xarray-tests
+        cache-environment: true
+        cache-environment-key: ${{runner.os}}-${{runner.arch}}-py${{matrix.python-version}}-${{env.TODAY}}-${{hashFiles(env.CONDA_ENV_FILE)}}
+        create-args: python=${{matrix.python-version}} conda
+    - name: Install error reporter
+      if: ${{ matrix.os }} == 'ubuntu-latest' and ${{ matrix.python-version }} == '3.12'
+      run: |
+        python -m pip install pytest-github-actions-annotate-failures
+    - name: Install xarray
+      run: |
+        python -m pip install --no-deps -e .
+    - name: Version info
+      run: |
+        conda info -a
+
+        conda list
+
+        python xarray/util/print_versions.py
+    - name: Import xarray
+      run: |
+        python -c "import xarray"
+    - name: Restore cached hypothesis directory
+      uses: actions/cache@v4
+      with:
+        path: .hypothesis/
+        key: cache-hypothesis
+        enableCrossOsArchive: true
+        save-always: true
+    - name: Apply patch
+      shell: bash
+      run: |
+
+                if [ -n "${{ github.event.inputs.patch }}" ]; then
+                   echo "Patch input provided. Applying patch..."
+                   echo "${{ github.event.inputs.patch }}" | base64 --decode | sed 's/\r$//'  > patch.diff
+                   echo "Decoded patch content:"
+                   cat patch.diff 
+                   echo "Apply the patch:"
+                   git apply patch.diff || {
+                     echo "Failed to apply patch"
+                     exit 1
+                   }
+                 else
+                   echo "No patch input provided. Skipping patch application."
+                 fi
+                echo "Print git diff on local repo"
+                git diff
+    - name: Run custom command
+      shell: bash
+      run: |
+         
+                if [ -n "${{ github.event.inputs.command }}" ]; then
+                   echo "Start running custom command"
+                   echo "${{ github.event.inputs.command }}"
+                   output=$(echo "${{ github.event.inputs.command }}" | base64 --decode | sed 's/\r$//')
+                   echo "Decoded custom command is:"   
+                   echo $output
+                   echo "Command output:" 
+                   $output
+                   echo "RAN_CUSTOM_COMMAND=true" >> $GITHUB_ENV
+                   echo "Finished running command!"
+                fi
+    - name: Exit if custom command was run
+      if: env.RAN_CUSTOM_COMMAND == 'true'
+      shell: bash
+      run: |
+
+                echo "Exiting job after custom command run"
+                exit 1
+    - name: Run tests (ces) (ces)
+      run: python -m pytest -n 4 --timeout 180 --cov=xarray --cov-report=xml --junitxml=pytest.xml
+    - name: Upload test results (ces)
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: Test results for ${{ runner.os }}-${{ matrix.python-version }} ${{ matrix.env }}
+        path: pytest.xml
+    - name: Upload code coverage to Codecov
+      uses: codecov/codecov-action@v4.5.0
+      with:
+        file: ./coverage.xml
+        flags: unittests
+        env_vars: RUNNER_OS,PYTHON_VERSION
+        name: codecov-umbrella
+        fail_ci_if_error: false
+  event_file:
+    name: Event File
+    runs-on: ubuntu-latest
+    if: true
+    steps:
+    - name: Upload
+      uses: actions/upload-artifact@v4
+      with:
+        name: Event File
+        path: ${{ github.event_path }}

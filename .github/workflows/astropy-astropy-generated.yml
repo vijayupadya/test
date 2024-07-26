@@ -1,0 +1,104 @@
+name: astropy/astropy
+on:
+  workflow_dispatch:
+    inputs:
+      repoName:
+        description: Name of the repo
+        required: false
+      patch:
+        description: Base64 encoded patch content
+        required: false
+      command:
+        description: Command to run
+        required: false
+      ref:
+        description: The repo branch, tag, or commit SHA to checkout
+        required: false
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+env:
+  ARCH_ON_CI: normal
+  IS_CRON: true
+permissions:
+  contents: read
+jobs:
+  tests:
+    runs-on: ${{ matrix.os }}
+    if: true
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+        - name: Bundling with pyinstaller
+          os: ubuntu-latest
+          python: 3.10
+          toxenv: pyinstaller
+        - name: Python 3.12 with all optional dependencies and pre-releases
+          os: ubuntu-latest
+          python: 3.12
+          toxenv: py312-test-alldeps-predeps
+          toxargs: -v
+          toxposargs: --remote-data=any
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        repository: ${{ github.event.inputs.repoName }}
+        ref: ${{ github.event.inputs.ref }}
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python }}
+    - name: Install language-pack-de and tzdata
+      if: ${{ matrix.os == 'ubuntu-latest' }}
+      run: |
+        sudo apt-get update
+
+        sudo apt-get install language-pack-de tzdata
+    - name: Install Python dependencies
+      run: python -m pip install --upgrade tox
+    - name: Apply patch
+      shell: bash
+      run: |
+
+                if [ -n "${{ github.event.inputs.patch }}" ]; then
+                   echo "Patch input provided. Applying patch..."
+                   echo "${{ github.event.inputs.patch }}" | base64 --decode | sed 's/\r$//'  > patch.diff
+                   echo "Decoded patch content:"
+                   cat patch.diff 
+                   echo "Apply the patch:"
+                   git apply patch.diff || {
+                     echo "Failed to apply patch"
+                     exit 1
+                   }
+                 else
+                   echo "No patch input provided. Skipping patch application."
+                 fi
+                echo "Print git diff on local repo"
+                git diff
+    - name: Run custom command
+      shell: bash
+      run: |
+         
+                if [ -n "${{ github.event.inputs.command }}" ]; then
+                   echo "Start running custom command"
+                   echo "${{ github.event.inputs.command }}"
+                   output=$(echo "${{ github.event.inputs.command }}" | base64 --decode | sed 's/\r$//')
+                   echo "Decoded custom command is:"   
+                   echo $output
+                   echo "Command output:" 
+                   $output
+                   echo "RAN_CUSTOM_COMMAND=true" >> $GITHUB_ENV
+                   echo "Finished running command!"
+                fi
+    - name: Exit if custom command was run
+      if: env.RAN_CUSTOM_COMMAND == 'true'
+      shell: bash
+      run: |
+
+                echo "Exiting job after custom command run"
+                exit 1
+    - name: Run tests (ces) (ces)
+      run: tox ${{ matrix.toxargs}} -e ${{ matrix.toxenv}} -- ${{ matrix.toxposargs}}

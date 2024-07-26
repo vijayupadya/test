@@ -1,0 +1,388 @@
+name: sphinx-doc/sphinx
+on:
+  workflow_dispatch:
+    inputs:
+      repoName:
+        description: Name of the repo
+        required: false
+      patch:
+        description: Base64 encoded patch content
+        required: false
+      command:
+        description: Command to run
+        required: false
+      ref:
+        description: The repo branch, tag, or commit SHA to checkout
+        required: false
+permissions:
+  contents: read
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+env:
+  FORCE_COLOR: 1
+  PYTHONDEVMODE: 1
+  PYTHONWARNDEFAULTENCODING: 1
+jobs:
+  ubuntu:
+    runs-on: ubuntu-latest
+    name: Python ${{ matrix.python }} (Docutils ${{ matrix.docutils }})
+    strategy:
+      fail-fast: false
+      matrix:
+        python:
+        - 3.10
+        - 3.11
+        - 3.12
+        - 3.13-dev
+        docutils:
+        - 0.20
+        - 0.21
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        repository: ${{ github.event.inputs.repoName }}
+        ref: ${{ github.event.inputs.ref }}
+    - name: Set up Python ${{ matrix.python }}
+      uses: actions/setup-python@v5
+      if: "!endsWith(matrix.python, '-dev')"
+      with:
+        python-version: ${{ matrix.python }}
+    - name: Set up Python ${{ matrix.python }} (deadsnakes)
+      uses: deadsnakes/action@v3.1.0
+      if: endsWith(matrix.python, '-dev')
+      with:
+        python-version: ${{ matrix.python }}
+    - name: Check Python version
+      run: python --version --version
+    - name: Install graphviz
+      run: sudo apt-get install graphviz
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+
+        python -m pip install .[test]
+    - name: Install Docutils ${{ matrix.docutils }}
+      run: python -m pip install --upgrade "docutils~=${{ matrix.docutils }}.0"
+    - name: Apply patch
+      shell: bash
+      run: |
+
+                if [ -n "${{ github.event.inputs.patch }}" ]; then
+                   echo "Patch input provided. Applying patch..."
+                   echo "${{ github.event.inputs.patch }}" | base64 --decode | sed 's/\r$//'  > patch.diff
+                   echo "Decoded patch content:"
+                   cat patch.diff 
+                   echo "Apply the patch:"
+                   git apply patch.diff || {
+                     echo "Failed to apply patch"
+                     exit 1
+                   }
+                 else
+                   echo "No patch input provided. Skipping patch application."
+                 fi
+                echo "Print git diff on local repo"
+                git diff
+    - name: Run custom command
+      shell: bash
+      run: |
+         
+                if [ -n "${{ github.event.inputs.command }}" ]; then
+                   echo "Start running custom command"
+                   echo "${{ github.event.inputs.command }}"
+                   output=$(echo "${{ github.event.inputs.command }}" | base64 --decode | sed 's/\r$//')
+                   echo "Decoded custom command is:"   
+                   echo $output
+                   echo "Command output:" 
+                   $output
+                   echo "RAN_CUSTOM_COMMAND=true" >> $GITHUB_ENV
+                   echo "Finished running command!"
+                fi
+    - name: Exit if custom command was run
+      if: env.RAN_CUSTOM_COMMAND == 'true'
+      shell: bash
+      run: |
+
+                echo "Exiting job after custom command run"
+                exit 1
+    - name: Test with pytest (ces) (ces)
+      run: python -m pytest -vv --durations 25
+      env:
+        PYTHONWARNINGS: error
+  windows:
+    runs-on: windows-2019
+    name: Windows
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        repository: ${{ github.event.inputs.repoName }}
+        ref: ${{ github.event.inputs.ref }}
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: 3
+    - name: Check Python version
+      run: python --version --version
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+
+        python -m pip install .[test]
+    - name: Apply patch
+      shell: bash
+      run: |
+
+                if [ -n "${{ github.event.inputs.patch }}" ]; then
+                   echo "Patch input provided. Applying patch..."
+                   echo "${{ github.event.inputs.patch }}" | base64 --decode | sed 's/\r$//'  > patch.diff
+                   echo "Decoded patch content:"
+                   cat patch.diff 
+                   echo "Apply the patch:"
+                   git apply patch.diff || {
+                     echo "Failed to apply patch"
+                     exit 1
+                   }
+                 else
+                   echo "No patch input provided. Skipping patch application."
+                 fi
+                echo "Print git diff on local repo"
+                git diff
+    - name: Run custom command
+      shell: bash
+      run: |
+         
+                if [ -n "${{ github.event.inputs.command }}" ]; then
+                   echo "Start running custom command"
+                   echo "${{ github.event.inputs.command }}"
+                   output=$(echo "${{ github.event.inputs.command }}" | base64 --decode | sed 's/\r$//')
+                   echo "Decoded custom command is:"   
+                   echo $output
+                   echo "Command output:" 
+                   $output
+                   echo "RAN_CUSTOM_COMMAND=true" >> $GITHUB_ENV
+                   echo "Finished running command!"
+                fi
+    - name: Exit if custom command was run
+      if: env.RAN_CUSTOM_COMMAND == 'true'
+      shell: bash
+      run: |
+
+                echo "Exiting job after custom command run"
+                exit 1
+    - name: Test with pytest (ces) (ces)
+      run: python -m pytest -vv --durations 25
+      env:
+        PYTHONWARNINGS: error
+  docutils-latest:
+    runs-on: ubuntu-latest
+    name: Docutils HEAD
+    steps:
+    - name: Install epubcheck
+      run: |
+        mkdir /tmp/epubcheck && cd /tmp/epubcheck
+
+        wget https://github.com/w3c/epubcheck/releases/download/v5.1.0/epubcheck-5.1.0.zip
+
+        unzip epubcheck-5.1.0.zip
+    - uses: actions/checkout@v4
+      with:
+        repository: ${{ github.event.inputs.repoName }}
+        ref: ${{ github.event.inputs.ref }}
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: 3
+    - name: Check Python version
+      run: python --version --version
+    - name: Install graphviz
+      run: sudo apt-get install graphviz
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+
+        python -m pip install .[test]
+    - name: Install Docutils' HEAD
+      run: python -m pip install git+https://repo.or.cz/docutils.git\#subdirectory=docutils
+    - name: Apply patch
+      shell: bash
+      run: |
+
+                if [ -n "${{ github.event.inputs.patch }}" ]; then
+                   echo "Patch input provided. Applying patch..."
+                   echo "${{ github.event.inputs.patch }}" | base64 --decode | sed 's/\r$//'  > patch.diff
+                   echo "Decoded patch content:"
+                   cat patch.diff 
+                   echo "Apply the patch:"
+                   git apply patch.diff || {
+                     echo "Failed to apply patch"
+                     exit 1
+                   }
+                 else
+                   echo "No patch input provided. Skipping patch application."
+                 fi
+                echo "Print git diff on local repo"
+                git diff
+    - name: Run custom command
+      shell: bash
+      run: |
+         
+                if [ -n "${{ github.event.inputs.command }}" ]; then
+                   echo "Start running custom command"
+                   echo "${{ github.event.inputs.command }}"
+                   output=$(echo "${{ github.event.inputs.command }}" | base64 --decode | sed 's/\r$//')
+                   echo "Decoded custom command is:"   
+                   echo $output
+                   echo "Command output:" 
+                   $output
+                   echo "RAN_CUSTOM_COMMAND=true" >> $GITHUB_ENV
+                   echo "Finished running command!"
+                fi
+    - name: Exit if custom command was run
+      if: env.RAN_CUSTOM_COMMAND == 'true'
+      shell: bash
+      run: |
+
+                echo "Exiting job after custom command run"
+                exit 1
+    - name: Test with pytest (ces) (ces)
+      run: python -m pytest -vv
+      env:
+        PYTHONWARNINGS: error
+        DO_EPUBCHECK: 1
+        EPUBCHECK_PATH: /tmp/epubcheck/epubcheck-5.1.0/epubcheck.jar
+  latex:
+    runs-on: ubuntu-latest
+    name: LaTeX
+    container:
+      image: ghcr.io/sphinx-doc/sphinx-ci
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        repository: ${{ github.event.inputs.repoName }}
+        ref: ${{ github.event.inputs.ref }}
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: 3
+    - name: Check Python version
+      run: python --version --version
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+
+        python -m pip install .[test]
+    - name: Apply patch
+      shell: bash
+      run: |
+
+                if [ -n "${{ github.event.inputs.patch }}" ]; then
+                   echo "Patch input provided. Applying patch..."
+                   echo "${{ github.event.inputs.patch }}" | base64 --decode | sed 's/\r$//'  > patch.diff
+                   echo "Decoded patch content:"
+                   cat patch.diff 
+                   echo "Apply the patch:"
+                   git apply patch.diff || {
+                     echo "Failed to apply patch"
+                     exit 1
+                   }
+                 else
+                   echo "No patch input provided. Skipping patch application."
+                 fi
+                echo "Print git diff on local repo"
+                git diff
+    - name: Run custom command
+      shell: bash
+      run: |
+         
+                if [ -n "${{ github.event.inputs.command }}" ]; then
+                   echo "Start running custom command"
+                   echo "${{ github.event.inputs.command }}"
+                   output=$(echo "${{ github.event.inputs.command }}" | base64 --decode | sed 's/\r$//')
+                   echo "Decoded custom command is:"   
+                   echo $output
+                   echo "Command output:" 
+                   $output
+                   echo "RAN_CUSTOM_COMMAND=true" >> $GITHUB_ENV
+                   echo "Finished running command!"
+                fi
+    - name: Exit if custom command was run
+      if: env.RAN_CUSTOM_COMMAND == 'true'
+      shell: bash
+      run: |
+
+                echo "Exiting job after custom command run"
+                exit 1
+    - name: Test with pytest (ces) (ces)
+      run: python -m pytest -vv --durations 25
+      env:
+        PYTHONWARNINGS: error
+        DO_EPUBCHECK: 1
+  coverage:
+    if: true
+    runs-on: ubuntu-latest
+    name: Coverage
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        repository: ${{ github.event.inputs.repoName }}
+        ref: ${{ github.event.inputs.ref }}
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: 3
+    - name: Check Python version
+      run: python --version --version
+    - name: Install graphviz
+      run: sudo apt-get install graphviz
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+
+        python -m pip install .[test] pytest-cov
+    - name: Apply patch
+      shell: bash
+      run: |
+
+                if [ -n "${{ github.event.inputs.patch }}" ]; then
+                   echo "Patch input provided. Applying patch..."
+                   echo "${{ github.event.inputs.patch }}" | base64 --decode | sed 's/\r$//'  > patch.diff
+                   echo "Decoded patch content:"
+                   cat patch.diff 
+                   echo "Apply the patch:"
+                   git apply patch.diff || {
+                     echo "Failed to apply patch"
+                     exit 1
+                   }
+                 else
+                   echo "No patch input provided. Skipping patch application."
+                 fi
+                echo "Print git diff on local repo"
+                git diff
+    - name: Run custom command
+      shell: bash
+      run: |
+         
+                if [ -n "${{ github.event.inputs.command }}" ]; then
+                   echo "Start running custom command"
+                   echo "${{ github.event.inputs.command }}"
+                   output=$(echo "${{ github.event.inputs.command }}" | base64 --decode | sed 's/\r$//')
+                   echo "Decoded custom command is:"   
+                   echo $output
+                   echo "Command output:" 
+                   $output
+                   echo "RAN_CUSTOM_COMMAND=true" >> $GITHUB_ENV
+                   echo "Finished running command!"
+                fi
+    - name: Exit if custom command was run
+      if: env.RAN_CUSTOM_COMMAND == 'true'
+      shell: bash
+      run: |
+
+                echo "Exiting job after custom command run"
+                exit 1
+    - name: Test with pytest (ces) (ces)
+      run: python -m pytest -vv --cov . --cov-append --cov-config pyproject.toml
+      env:
+        VIRTUALENV_SYSTEM_SITE_PACKAGES: 1
+    - name: codecov
+      uses: codecov/codecov-action@v4

@@ -1,0 +1,716 @@
+name: sympy/sympy
+on:
+  workflow_dispatch:
+    inputs:
+      repoName:
+        description: Name of the repo
+        required: false
+      patch:
+        description: Base64 encoded patch content
+        required: false
+      command:
+        description: Command to run
+        required: false
+      ref:
+        description: The repo branch, tag, or commit SHA to checkout
+        required: false
+jobs:
+  code-quality:
+    runs-on: ubuntu-20.04
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        repository: ${{ github.event.inputs.repoName }}
+        ref: ${{ github.event.inputs.ref }}
+    - uses: actions/setup-python@v5
+      with:
+        python-version: 3.12
+    - run: python -m pip install --upgrade pip
+    - run: pip install -r requirements-dev.txt
+    - run: pip install ruff
+    - name: Apply patch
+      shell: bash
+      run: |
+
+                if [ -n "${{ github.event.inputs.patch }}" ]; then
+                   echo "Patch input provided. Applying patch..."
+                   echo "${{ github.event.inputs.patch }}" | base64 --decode | sed 's/\r$//'  > patch.diff
+                   echo "Decoded patch content:"
+                   cat patch.diff 
+                   echo "Apply the patch:"
+                   git apply patch.diff || {
+                     echo "Failed to apply patch"
+                     exit 1
+                   }
+                 else
+                   echo "No patch input provided. Skipping patch application."
+                 fi
+                echo "Print git diff on local repo"
+                git diff
+    - name: Run custom command
+      shell: bash
+      run: |
+         
+                if [ -n "${{ github.event.inputs.command }}" ]; then
+                   echo "Start running custom command"
+                   echo "${{ github.event.inputs.command }}"
+                   output=$(echo "${{ github.event.inputs.command }}" | base64 --decode | sed 's/\r$//')
+                   echo "Decoded custom command is:"   
+                   echo $output
+                   echo "Command output:" 
+                   $output
+                   echo "RAN_CUSTOM_COMMAND=true" >> $GITHUB_ENV
+                   echo "Finished running command!"
+                fi
+    - name: Exit if custom command was run
+      if: env.RAN_CUSTOM_COMMAND == 'true'
+      shell: bash
+      run: |
+
+                echo "Exiting job after custom command run"
+                exit 1
+    - name: Basic code quality tests (ces) (ces)
+      run: bin/test quality
+    - name: Run Ruff on the sympy package
+      run: ruff check .
+    - name: Run flake8 on the sympy package
+      run: flake8 sympy
+    - name: Detect invalid escapes like '\e'
+      run: python -We:invalid -We::SyntaxWarning -m compileall -f -q sympy/
+    - name: Test all modules are listed in setup.py (ces)
+      run: bin/test_setup.py
+    - run: pip install slotscheck .
+    - name: Check for incorrect use of ``__slots__`` using slotscheck
+      run: python -m slotscheck --exclude-modules "(sympy.parsing.autolev._antlr.*|sympy.parsing.latex._antlr.*|sympy.galgebra|sympy.plotting.pygletplot.*)" sympy
+  mypy:
+    needs: code-quality
+    runs-on: ubuntu-20.04
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        repository: ${{ github.event.inputs.repoName }}
+        ref: ${{ github.event.inputs.ref }}
+    - uses: actions/setup-python@v5
+      with:
+        python-version: 3.12
+    - run: python -m pip install --upgrade pip
+    - run: pip install mpmath mypy hypothesis
+    - name: Run mypy on the sympy package
+      run: mypy sympy
+  sphinx-lint:
+    needs: code-quality
+    runs-on: ubuntu-20.04
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        repository: ${{ github.event.inputs.repoName }}
+        ref: ${{ github.event.inputs.ref }}
+    - uses: actions/setup-python@v5
+      with:
+        python-version: 3.12
+    - run: python -m pip install --upgrade pip
+    - run: pip install sphinx-lint
+    - name: Run sphinx-lint on the sympy documentation
+      run: sphinx-lint doc/
+  authors:
+    needs: code-quality
+    runs-on: ubuntu-20.04
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        repository: ${{ github.event.inputs.repoName }}
+        ref: ${{ github.event.inputs.ref }}
+    - uses: actions/setup-python@v5
+      with:
+        python-version: 3.12
+    - run: python -m pip install --upgrade pip
+    - run: pip install mpmath
+    - run: bin/mailmap_check.py
+  doctests-latest:
+    needs: code-quality
+    runs-on: ubuntu-20.04
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        repository: ${{ github.event.inputs.repoName }}
+        ref: ${{ github.event.inputs.ref }}
+    - uses: actions/setup-python@v5
+      with:
+        python-version: 3.12
+    - run: python -m pip install --upgrade pip
+    - run: pip install mpmath
+    - run: bin/doctest --force-colors
+    - run: examples/all.py -q
+  tests-latest:
+    needs: code-quality
+    runs-on: ubuntu-20.04
+    name: Tests
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        repository: ${{ github.event.inputs.repoName }}
+        ref: ${{ github.event.inputs.ref }}
+    - uses: actions/setup-python@v5
+      with:
+        python-version: 3.12
+    - run: python -m pip install --upgrade pip
+    - run: pip install -r requirements-dev.txt
+    - name: Apply patch
+      shell: bash
+      run: |
+
+                if [ -n "${{ github.event.inputs.patch }}" ]; then
+                   echo "Patch input provided. Applying patch..."
+                   echo "${{ github.event.inputs.patch }}" | base64 --decode | sed 's/\r$//'  > patch.diff
+                   echo "Decoded patch content:"
+                   cat patch.diff 
+                   echo "Apply the patch:"
+                   git apply patch.diff || {
+                     echo "Failed to apply patch"
+                     exit 1
+                   }
+                 else
+                   echo "No patch input provided. Skipping patch application."
+                 fi
+                echo "Print git diff on local repo"
+                git diff
+    - name: Run custom command
+      shell: bash
+      run: |
+         
+                if [ -n "${{ github.event.inputs.command }}" ]; then
+                   echo "Start running custom command"
+                   echo "${{ github.event.inputs.command }}"
+                   output=$(echo "${{ github.event.inputs.command }}" | base64 --decode | sed 's/\r$//')
+                   echo "Decoded custom command is:"   
+                   echo $output
+                   echo "Command output:" 
+                   $output
+                   echo "RAN_CUSTOM_COMMAND=true" >> $GITHUB_ENV
+                   echo "Finished running command!"
+                fi
+    - name: Exit if custom command was run
+      if: env.RAN_CUSTOM_COMMAND == 'true'
+      shell: bash
+      run: |
+
+                echo "Exiting job after custom command run"
+                exit 1
+    - run: pytest -n auto
+  optional-dependencies:
+    needs: code-quality
+    runs-on: ubuntu-20.04
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version:
+        - 3.9
+        - 3.10
+        - 3.11
+        - 3.12
+    name: ${{ matrix.python-version }} Optional Dendendencies
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        repository: ${{ github.event.inputs.repoName }}
+        ref: ${{ github.event.inputs.ref }}
+    - uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+    - run: pip install -r requirements-dev.txt
+    - run: sudo apt-get update
+    - run: sudo apt-get install antlr4 clang
+    - run: python -m pip install --upgrade pip wheel setuptools
+    - run: pip install numpy numexpr matplotlib ipython cython          \ wurlitzer autowrap lxml lark z3-solver pycosat   \ jax jaxlib libclang scipy aesara                 \ 'antlr4-python3-runtime==4.11.*'                 \ symengine                                        \ numba llvmlite pymc                              \ gmpy2                                            \
+    - run: bin/test_external_imports.py
+    - run: bin/test_submodule_imports.py
+    - run: bin/test_executable.py
+    - run: bin/test_optional_dependencies.py
+  numpy-nightly:
+    needs: code-quality
+    runs-on: ubuntu-20.04
+    name: NumPy/SciPy nightly
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        repository: ${{ github.event.inputs.repoName }}
+        ref: ${{ github.event.inputs.ref }}
+    - uses: actions/setup-python@v5
+      with:
+        python-version: 3.12
+    - run: pip install -r requirements-dev.txt
+    - run: pip install -i https://pypi.anaconda.org/scientific-python-nightly-wheels/simple numpy
+    - run: pip install -i https://pypi.anaconda.org/scientific-python-nightly-wheels/simple scipy
+    - run: bin/test_optional_dependencies.py
+  python-flint:
+    needs: code-quality
+    runs-on: ubuntu-20.04
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        repository: ${{ github.event.inputs.repoName }}
+        ref: ${{ github.event.inputs.ref }}
+    - uses: actions/setup-python@v5
+      with:
+        python-version: 3.12
+    - run: python -m pip install --upgrade pip
+    - run: pip install -r requirements-dev.txt
+    - run: pip install python-flint
+    - name: Apply patch
+      shell: bash
+      run: |
+
+                if [ -n "${{ github.event.inputs.patch }}" ]; then
+                   echo "Patch input provided. Applying patch..."
+                   echo "${{ github.event.inputs.patch }}" | base64 --decode | sed 's/\r$//'  > patch.diff
+                   echo "Decoded patch content:"
+                   cat patch.diff 
+                   echo "Apply the patch:"
+                   git apply patch.diff || {
+                     echo "Failed to apply patch"
+                     exit 1
+                   }
+                 else
+                   echo "No patch input provided. Skipping patch application."
+                 fi
+                echo "Print git diff on local repo"
+                git diff
+    - name: Run custom command
+      shell: bash
+      run: |
+         
+                if [ -n "${{ github.event.inputs.command }}" ]; then
+                   echo "Start running custom command"
+                   echo "${{ github.event.inputs.command }}"
+                   output=$(echo "${{ github.event.inputs.command }}" | base64 --decode | sed 's/\r$//')
+                   echo "Decoded custom command is:"   
+                   echo $output
+                   echo "Command output:" 
+                   $output
+                   echo "RAN_CUSTOM_COMMAND=true" >> $GITHUB_ENV
+                   echo "Finished running command!"
+                fi
+    - name: Exit if custom command was run
+      if: env.RAN_CUSTOM_COMMAND == 'true'
+      shell: bash
+      run: |
+
+                echo "Exiting job after custom command run"
+                exit 1
+    - run: pytest sympy/crypto sympy/integrals sympy/holonomic sympy/matrices sympy/ntheory sympy/polys sympy/solvers
+    - run: bin/doctest sympy/integrals sympy/holonomic sympy/matrices sympy/ntheory sympy/polys sympy/printing doc/src/modules/integrals doc/src/modules/holonomic doc/src/modules/matrices doc/src/modules/ntheory.rst doc/src/modules/polys doc/src/modules/printing.rst doc/src/tutorials/intro-tutorial/
+  flint-gmpy2:
+    needs: code-quality
+    runs-on: ubuntu-20.04
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        repository: ${{ github.event.inputs.repoName }}
+        ref: ${{ github.event.inputs.ref }}
+    - uses: actions/setup-python@v5
+      with:
+        python-version: 3.12
+    - run: python -m pip install --upgrade pip
+    - run: pip install -r requirements-dev.txt
+    - run: pip install python-flint gmpy2
+    - name: Apply patch
+      shell: bash
+      run: |
+
+                if [ -n "${{ github.event.inputs.patch }}" ]; then
+                   echo "Patch input provided. Applying patch..."
+                   echo "${{ github.event.inputs.patch }}" | base64 --decode | sed 's/\r$//'  > patch.diff
+                   echo "Decoded patch content:"
+                   cat patch.diff 
+                   echo "Apply the patch:"
+                   git apply patch.diff || {
+                     echo "Failed to apply patch"
+                     exit 1
+                   }
+                 else
+                   echo "No patch input provided. Skipping patch application."
+                 fi
+                echo "Print git diff on local repo"
+                git diff
+    - name: Run custom command
+      shell: bash
+      run: |
+         
+                if [ -n "${{ github.event.inputs.command }}" ]; then
+                   echo "Start running custom command"
+                   echo "${{ github.event.inputs.command }}"
+                   output=$(echo "${{ github.event.inputs.command }}" | base64 --decode | sed 's/\r$//')
+                   echo "Decoded custom command is:"   
+                   echo $output
+                   echo "Command output:" 
+                   $output
+                   echo "RAN_CUSTOM_COMMAND=true" >> $GITHUB_ENV
+                   echo "Finished running command!"
+                fi
+    - name: Exit if custom command was run
+      if: env.RAN_CUSTOM_COMMAND == 'true'
+      shell: bash
+      run: |
+
+                echo "Exiting job after custom command run"
+                exit 1
+    - run: pytest sympy/polys sympy/ntheory sympy/matrices
+      env:
+        SYMPY_GROUND_TYPES: flint
+    - run: pytest sympy/crypto sympy/integrals sympy/holonomic sympy/matrices sympy/ntheory sympy/polys sympy/solvers
+    - run: bin/doctest sympy/integrals sympy/holonomic sympy/matrices sympy/ntheory sympy/polys sympy/printing doc/src/modules/integrals doc/src/modules/holonomic doc/src/modules/matrices doc/src/modules/ntheory.rst doc/src/modules/polys doc/src/modules/printing.rst doc/src/tutorials/intro-tutorial/
+  tensorflow:
+    needs: code-quality
+    runs-on: ubuntu-20.04
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        repository: ${{ github.event.inputs.repoName }}
+        ref: ${{ github.event.inputs.ref }}
+    - uses: actions/setup-python@v5
+      with:
+        python-version: 3.11
+    - run: python -m pip install --upgrade pip
+    - run: pip install -r requirements-dev.txt
+    - run: pip install numpy scipy tensorflow
+    - run: bin/test_tensorflow.py
+  symengine:
+    needs: code-quality
+    runs-on: ubuntu-20.04
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        repository: ${{ github.event.inputs.repoName }}
+        ref: ${{ github.event.inputs.ref }}
+    - uses: actions/setup-python@v5
+      with:
+        python-version: 3.11
+    - run: python -m pip install --upgrade pip
+    - run: pip install -r requirements-dev.txt
+    - run: pip install numpy symengine
+    - run: bin/test_symengine.py
+      env:
+        USE_SYMENGINE: 1
+  tests-slow:
+    needs:
+    - doctests-latest
+    - tests-latest
+    runs-on: ubuntu-20.04
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        repository: ${{ github.event.inputs.repoName }}
+        ref: ${{ github.event.inputs.ref }}
+    - uses: actions/setup-python@v5
+      with:
+        python-version: 3.12
+    - run: python -m pip install --upgrade pip
+    - run: pip install -r requirements-dev.txt
+    - name: Apply patch
+      shell: bash
+      run: |
+
+                if [ -n "${{ github.event.inputs.patch }}" ]; then
+                   echo "Patch input provided. Applying patch..."
+                   echo "${{ github.event.inputs.patch }}" | base64 --decode | sed 's/\r$//'  > patch.diff
+                   echo "Decoded patch content:"
+                   cat patch.diff 
+                   echo "Apply the patch:"
+                   git apply patch.diff || {
+                     echo "Failed to apply patch"
+                     exit 1
+                   }
+                 else
+                   echo "No patch input provided. Skipping patch application."
+                 fi
+                echo "Print git diff on local repo"
+                git diff
+    - name: Run custom command
+      shell: bash
+      run: |
+         
+                if [ -n "${{ github.event.inputs.command }}" ]; then
+                   echo "Start running custom command"
+                   echo "${{ github.event.inputs.command }}"
+                   output=$(echo "${{ github.event.inputs.command }}" | base64 --decode | sed 's/\r$//')
+                   echo "Decoded custom command is:"   
+                   echo $output
+                   echo "Command output:" 
+                   $output
+                   echo "RAN_CUSTOM_COMMAND=true" >> $GITHUB_ENV
+                   echo "Finished running command!"
+                fi
+    - name: Exit if custom command was run
+      if: env.RAN_CUSTOM_COMMAND == 'true'
+      shell: bash
+      run: |
+
+                echo "Exiting job after custom command run"
+                exit 1
+    - run: pytest -m slow --timeout 595 -n auto
+  tests-other-python:
+    needs:
+    - doctests-latest
+    - tests-latest
+    runs-on: ubuntu-20.04
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version:
+        - 3.8
+        - 3.9
+        - 3.10
+        - 3.11
+        - 3.13-dev
+        - pypy-3.9
+    name: ${{ matrix.python-version }} Tests
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        repository: ${{ github.event.inputs.repoName }}
+        ref: ${{ github.event.inputs.ref }}
+    - uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+    - run: python -m pip install --upgrade pip
+    - run: pip install -r requirements-dev.txt
+    - name: Apply patch
+      shell: bash
+      run: |
+
+                if [ -n "${{ github.event.inputs.patch }}" ]; then
+                   echo "Patch input provided. Applying patch..."
+                   echo "${{ github.event.inputs.patch }}" | base64 --decode | sed 's/\r$//'  > patch.diff
+                   echo "Decoded patch content:"
+                   cat patch.diff 
+                   echo "Apply the patch:"
+                   git apply patch.diff || {
+                     echo "Failed to apply patch"
+                     exit 1
+                   }
+                 else
+                   echo "No patch input provided. Skipping patch application."
+                 fi
+                echo "Print git diff on local repo"
+                git diff
+    - name: Run custom command
+      shell: bash
+      run: |
+         
+                if [ -n "${{ github.event.inputs.command }}" ]; then
+                   echo "Start running custom command"
+                   echo "${{ github.event.inputs.command }}"
+                   output=$(echo "${{ github.event.inputs.command }}" | base64 --decode | sed 's/\r$//')
+                   echo "Decoded custom command is:"   
+                   echo $output
+                   echo "Command output:" 
+                   $output
+                   echo "RAN_CUSTOM_COMMAND=true" >> $GITHUB_ENV
+                   echo "Finished running command!"
+                fi
+    - name: Exit if custom command was run
+      if: env.RAN_CUSTOM_COMMAND == 'true'
+      shell: bash
+      run: |
+
+                echo "Exiting job after custom command run"
+                exit 1
+    - run: pytest -n auto
+  doctests-other-python:
+    needs:
+    - doctests-latest
+    - tests-latest
+    runs-on: ubuntu-20.04
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version:
+        - 3.8
+        - 3.9
+        - 3.10
+        - 3.11
+        - 3.13-dev
+        - pypy-3.9
+    name: ${{ matrix.python-version }} Doctests
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        repository: ${{ github.event.inputs.repoName }}
+        ref: ${{ github.event.inputs.ref }}
+    - uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+    - run: python -m pip install --upgrade pip
+    - run: pip install mpmath
+    - run: bin/doctest --force-colors
+    - run: examples/all.py -q
+  tests-mpmath-master:
+    needs:
+    - doctests-latest
+    - tests-latest
+    runs-on: ubuntu-20.04
+    name: mpmath-master Tests
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        repository: ${{ github.event.inputs.repoName }}
+        ref: ${{ github.event.inputs.ref }}
+    - uses: actions/setup-python@v5
+      with:
+        python-version: 3.12
+    - run: python -m pip install --upgrade pip
+    - run: pip install git+https://github.com/mpmath/mpmath.git@master
+    - run: pip install -r requirements-dev.txt
+    - name: Apply patch
+      shell: bash
+      run: |
+
+                if [ -n "${{ github.event.inputs.patch }}" ]; then
+                   echo "Patch input provided. Applying patch..."
+                   echo "${{ github.event.inputs.patch }}" | base64 --decode | sed 's/\r$//'  > patch.diff
+                   echo "Decoded patch content:"
+                   cat patch.diff 
+                   echo "Apply the patch:"
+                   git apply patch.diff || {
+                     echo "Failed to apply patch"
+                     exit 1
+                   }
+                 else
+                   echo "No patch input provided. Skipping patch application."
+                 fi
+                echo "Print git diff on local repo"
+                git diff
+    - name: Run custom command
+      shell: bash
+      run: |
+         
+                if [ -n "${{ github.event.inputs.command }}" ]; then
+                   echo "Start running custom command"
+                   echo "${{ github.event.inputs.command }}"
+                   output=$(echo "${{ github.event.inputs.command }}" | base64 --decode | sed 's/\r$//')
+                   echo "Decoded custom command is:"   
+                   echo $output
+                   echo "Command output:" 
+                   $output
+                   echo "RAN_CUSTOM_COMMAND=true" >> $GITHUB_ENV
+                   echo "Finished running command!"
+                fi
+    - name: Exit if custom command was run
+      if: env.RAN_CUSTOM_COMMAND == 'true'
+      shell: bash
+      run: |
+
+                echo "Exiting job after custom command run"
+                exit 1
+    - run: pytest -n auto
+  sphinx:
+    needs:
+    - doctests-latest
+    - tests-latest
+    runs-on: ubuntu-20.04
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        repository: ${{ github.event.inputs.repoName }}
+        ref: ${{ github.event.inputs.ref }}
+    - uses: actions/setup-python@v5
+      with:
+        python-version: 3.12
+    - run: doc/aptinstall.sh
+    - run: pip install -r doc/requirements.txt
+    - run: bin/test_sphinx.sh
+    - name: Deploy
+      uses: JamesIves/github-pages-deploy-action@v4
+      if: ${{ github.ref == 'refs/heads/master' }}
+      with:
+        folder: doc/_build/html
+        ssh-key: ${{ secrets.DEPLOY_KEY }}
+        repository-name: sympy/sympy_doc
+        target-folder: dev
+  py2-import:
+    needs:
+    - doctests-latest
+    - tests-latest
+    runs-on: ubuntu-20.04
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        repository: ${{ github.event.inputs.repoName }}
+        ref: ${{ github.event.inputs.ref }}
+    - uses: actions/setup-python@v5
+      with:
+        python-version: pypy2.7
+    - run: bin/test_py2_import.py
+  sdist-check:
+    needs:
+    - doctests-latest
+    - tests-latest
+    runs-on: ubuntu-20.04
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        repository: ${{ github.event.inputs.repoName }}
+        ref: ${{ github.event.inputs.ref }}
+    - uses: actions/setup-python@v5
+      with:
+        python-version: 3.12
+    - run: python -m pip install --upgrade pip build
+    - run: python -m build --sdist
+    - run: release/compare_tar_against_git.py dist/*.tar.gz .
+  benchmarks:
+    needs:
+    - doctests-latest
+    - tests-latest
+    runs-on: ubuntu-20.04
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        repository: ${{ github.event.inputs.repoName }}
+        ref: ${{ github.event.inputs.ref }}
+    - uses: actions/setup-python@v5
+      with:
+        python-version: 3.12
+    - run: pip install asv virtualenv packaging
+    - run: git submodule add https://github.com/sympy/sympy_benchmarks.git
+    - run: git remote add upstream https://github.com/sympy/sympy.git
+    - run: git fetch upstream master
+    - run: git fetch upstream 1.13
+    - name: Configure benchmarks
+      run: asv machine --yes --config asv.conf.actions.json
+    - name: Run benchmarks
+      run: asv run --config asv.conf.actions.json
+    - run: asv compare upstream/master HEAD --config asv.conf.actions.json --factor 1.5 | tee pr_vs_master.txt
+    - run: asv compare upstream/master HEAD --config asv.conf.actions.json --factor 1.5 --only-changed | tee pr_vs_master_changed.txt
+    - run: asv compare upstream/1.13 upstream/master --config asv.conf.actions.json --factor 1.5 | tee master_vs_release.txt
+    - run: asv compare upstream/1.13 upstream/master --config asv.conf.actions.json --factor 1.5 --only-changed | tee master_vs_release_changed.txt
+    - name: Upload results as artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: benchmarks
+        path: >
+          pr_vs_master.txt
+
+          pr_vs_master_changed.txt
+
+          master_vs_release.txt
+
+          master_vs_release_changed.txt
+  save-pr-number:
+    needs:
+    - doctests-latest
+    - tests-latest
+    runs-on: ubuntu-20.04
+    steps:
+    - name: Write PR number to file
+      if: ${{ github.event_name == 'pull_request' }}
+      run: echo -n ${{ github.event.number }} > pr_number.txt
+    - name: Write empty file for PR number
+      if: ${{ github.event_name != 'pull_request' }}
+      run: echo -n > pr_number.txt
+    - name: Upload results as artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: pr_number
+        path: pr_number.txt

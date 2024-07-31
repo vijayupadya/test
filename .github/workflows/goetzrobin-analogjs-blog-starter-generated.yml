@@ -1,0 +1,65 @@
+name: goetzrobin/analogjs-blog-starter
+on:
+  workflow_dispatch:
+    inputs:
+      repoName:
+        description: Name of the repo
+        required: false
+      patch:
+        description: Base64 encoded patch content
+        required: false
+      command:
+        description: Command to run
+        required: false
+      ref:
+        description: The repo branch, tag, or commit SHA to checkout
+        required: false
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: pages
+  cancel-in-progress: true
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        repository: ${{ github.event.inputs.repoName }}
+        ref: ${{ github.event.inputs.ref }}
+    - uses: actions/setup-node@v3
+      with:
+        node-version: 16.15.1
+    - name: Get yarn cache directory path
+      id: yarn-cache-dir-path
+      run: echo "::set-output name=dir::$(yarn cache dir)"
+    - uses: actions/cache@v2
+      id: yarn-cache
+      with:
+        path: ${{ steps.yarn-cache-dir-path.outputs.dir }}
+        key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
+        restore-keys: >
+          ${{ runner.os }}-yarn-
+    - name: Install dependencies
+      run: yarn install --prefer-offline --frozen-lockfile
+      if: steps.yarn-cache.outputs.cache-hit != 'true'
+    - name: Build
+      run: yarn build
+    - name: Upload Analog artifact
+      id: upload-artifact
+      uses: actions/upload-pages-artifact@v1
+      with:
+        path: ./dist/app/server/public
+        url: goetzrobin.github.io
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+    - name: Deploy to GitHub Pages
+      id: deployment
+      uses: actions/deploy-pages@v1

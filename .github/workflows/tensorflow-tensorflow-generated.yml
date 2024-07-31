@@ -1,0 +1,54 @@
+name: tensorflow/tensorflow
+on:
+  workflow_dispatch:
+    inputs:
+      repoName:
+        description: Name of the repo
+        required: false
+      patch:
+        description: Base64 encoded patch content
+        required: false
+      command:
+        description: Command to run
+        required: false
+      ref:
+        description: The repo branch, tag, or commit SHA to checkout
+        required: false
+permissions:
+  contents: read
+jobs:
+  cherrypick:
+    name: Cherrypick to ${{ github.event.inputs.release_branch}} - ${{ github.event.inputs.git_commit }}
+    runs-on: ubuntu-latest
+    if: true
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
+      with:
+        ref: ${{ github.event.inputs.ref }}
+        repository: ${{ github.event.inputs.repoName }}
+    - name: Get some helpful info for formatting
+      id: cherrypick
+      run: |
+        git config --global user.name "TensorFlow Release Automation"
+
+        git config --global user.email "jenkins@tensorflow.org"
+
+        git fetch origin master
+
+        git cherry-pick ${{ github.event.inputs.git_commit }}
+
+        echo "SHORTSHA=$(git log -1 ${{ github.event.inputs.git_commit }} --format="%h")" >> "$GITHUB_OUTPUT"
+
+        echo "TITLE=$(git log -1 ${{ github.event.inputs.git_commit }} --format="%s")" >> "$GITHUB_OUTPUT"
+    - name: Create Pull Request with changes
+      uses: peter-evans/create-pull-request@c5a7806660adbe173f04e3e038b0ccdcd758773c
+      with:
+        title: '${{ github.event.inputs.release_branch }} cherry-pick: ${{ steps.cherrypick.outputs.SHORTSHA }} "${{ steps.cherrypick.outputs.TITLE }}"'
+        committer: TensorFlow Release Automation <jenkins@tensorflow.org>
+        token: ${{ secrets.JENKINS_TOKEN }}
+        base: ${{ github.event.inputs.release_branch }}
+        branch: ${{ github.event.inputs.release_branch }}-${{ steps.cherrypick.outputs.SHORTSHA }}
+        reviewers: learning-to-play
+        body: >
+          Refer to the original commit: https://github.com/tensorflow/tensorflow/commit/${{ github.event.inputs.git_commit }}

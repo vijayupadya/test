@@ -1,0 +1,32 @@
+name: Azure/azure-cosmos-dotnet-v3
+on:
+  workflow_dispatch:
+    inputs:
+      repoName:
+        description: Name of the repo
+        required: false
+      patch:
+        description: Base64 encoded patch content
+        required: false
+      command:
+        description: Command to run
+        required: false
+      ref:
+        description: The repo branch, tag, or commit SHA to checkout
+        required: false
+jobs:
+  pr-lint:
+    permissions:
+      checks: write
+      pull-requests: write
+    runs-on: ubuntu-latest
+    steps:
+    - uses: morrisoncole/pr-lint-action@v1.7.0
+      with:
+        title-regex: '(\[Internal\]|\[v4\] )?.{3}.+: (Adds|Fixes|Refactors|Removes) .{3}.+'
+        repo-token: ${{ secrets.GITHUB_TOKEN }}
+        on-failed-regex-fail-action: true
+        on-failed-regex-request-changes: false
+        on-failed-regex-create-review: true
+        on-failed-regex-comment: >
+          Please follow the required format: \"[Internal] Category: (Adds|Fixes|Refactors|Removes) Description\"<br /><br /> Internal should be used for PRs that have no customer impact. This flag is used to help generate the changelog to know which PRs should be included. Examples:<br /> Diagnostics: Adds GetElapsedClientLatency to CosmosDiagnostics<br/>  PartitionKey: Fixes null reference when using default(PartitionKey)<br/>  [v4] Client Encryption: Refactors code to external project<br/> [Internal] Query: Adds code generator for CosmosNumbers for easy additions in the future.<br/>

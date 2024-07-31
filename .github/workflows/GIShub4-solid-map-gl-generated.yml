@@ -1,0 +1,39 @@
+name: GIShub4/solid-map-gl
+on:
+  workflow_dispatch:
+    inputs:
+      repoName:
+        description: Name of the repo
+        required: false
+      patch:
+        description: Base64 encoded patch content
+        required: false
+      command:
+        description: Command to run
+        required: false
+      ref:
+        description: The repo branch, tag, or commit SHA to checkout
+        required: false
+permissions:
+  pull-requests: write
+jobs:
+  automerge:
+    runs-on: ubuntu-latest
+    if: true
+    steps:
+    - name: Dependabot metadata
+      id: metadata
+      uses: dependabot/fetch-metadata@v1.3.5
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+    - name: Approve dependabot PR
+      run: gh pr review --approve "$PR_URL"
+      env:
+        PR_URL: ${{github.event.pull_request.html_url}}
+        GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
+    - name: Auto merge dependabot PR
+      if: ${{steps.metadata.outputs.update-type == 'version-update:semver-patch'}}
+      run: gh pr merge --auto --squash "$PR_URL"
+      env:
+        PR_URL: ${{github.event.pull_request.html_url}}
+        GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}

@@ -1,0 +1,43 @@
+name: SPF-Open/Tao_import
+on:
+  workflow_dispatch:
+    inputs:
+      repoName:
+        description: Name of the repo
+        required: false
+      patch:
+        description: Base64 encoded patch content
+        required: false
+      command:
+        description: Command to run
+        required: false
+      ref:
+        description: The repo branch, tag, or commit SHA to checkout
+        required: false
+jobs:
+  eslint:
+    name: Run eslint scanning
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+      with:
+        repository: ${{ github.event.inputs.repoName }}
+        ref: ${{ github.event.inputs.ref }}
+    - name: Install ESLint
+      run: |
+        npm install eslint@8.10.0
+
+        npm install @microsoft/eslint-formatter-sarif@2.1.7
+    - name: Run ESLint
+      run: npx eslint . --config .eslintrc.cjs --format @microsoft/eslint-formatter-sarif --output-file eslint-results.sarif
+      continue-on-error: true
+    - name: Upload analysis results to GitHub
+      uses: github/codeql-action/upload-sarif@v2
+      with:
+        sarif_file: eslint-results.sarif
+        wait-for-processing: true

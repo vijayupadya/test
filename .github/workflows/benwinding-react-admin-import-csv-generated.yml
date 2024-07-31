@@ -1,0 +1,109 @@
+on:
+  workflow_dispatch:
+    inputs:
+      repoName:
+        description: Name of the repo
+        required: false
+      patch:
+        description: Base64 encoded patch content
+        required: false
+      command:
+        description: Command to run
+        required: false
+      ref:
+        description: The repo branch, tag, or commit SHA to checkout
+        required: false
+name: benwinding/react-admin-import-csv
+jobs:
+  build:
+    if: true
+    name: Build Library
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@master
+      with:
+        repository: ${{ github.event.inputs.repoName }}
+        ref: ${{ github.event.inputs.ref }}
+    - uses: actions/setup-node@v1
+      with:
+        node-version: 16.18.1
+    - uses: actions/cache@v1
+      id: cache-modules
+      with:
+        path: node_modules
+        key: ${{ runner.OS }}-build-${{ hashFiles('package.json') }}
+    - run: yarn install --pure-lockfile
+      if: steps.cache-modules.outputs.cache-hit != 'true'
+    - run: yarn build
+    - run: yarn test
+    - run: yarn test:badges
+    - name: Upload esm build artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: build-esm
+        path: esm
+    - name: Upload lib build artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: build-lib
+        path: lib
+  deploy:
+    if: true
+    needs: build
+    name: Deploy Library
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@master
+      with:
+        repository: ${{ github.event.inputs.repoName }}
+        ref: ${{ github.event.inputs.ref }}
+    - uses: actions/setup-node@v1
+      with:
+        node-version: 16.18.1
+    - uses: actions/cache@v1
+      id: cache-modules
+      with:
+        path: node_modules
+        key: ${{ runner.OS }}-build-${{ hashFiles('package.json') }}
+    - name: Download build-lib
+      uses: actions/download-artifact@v2
+      with:
+        name: build-lib
+        path: lib
+    - name: Download build-esm
+      uses: actions/download-artifact@v2
+      with:
+        name: build-esm
+        path: esm
+    - name: "Deploy to NPM! \U0001F680"
+      uses: Github-Actions-Community/merge-release@master
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        NPM_AUTH_TOKEN: ${{ secrets.NPM_AUTH_TOKEN }}
+  demo:
+    needs: build
+    name: Deploy Demo
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@master
+      with:
+        repository: ${{ github.event.inputs.repoName }}
+        ref: ${{ github.event.inputs.ref }}
+    - uses: actions/setup-node@v1
+      with:
+        node-version: 16.18.1
+    - uses: actions/cache@v1
+      id: cache-modules
+      with:
+        path: node_modules
+        key: ${{ runner.OS }}-build-${{ hashFiles('package.json') }}
+    - run: yarn build-for-demo
+    - run: yarn build
+      working-directory: ./demo
+    - name: "Deploy \U0001F680"
+      if: github.ref == 'refs/heads/master'
+      uses: JamesIves/github-pages-deploy-action@releases/v3
+      with:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        BRANCH: gh-pages
+        FOLDER: demo/build

@@ -1,0 +1,41 @@
+name: Zolyn/vite-plugin-vue-with-defaults-imports
+on:
+  workflow_dispatch:
+    inputs:
+      repoName:
+        description: Name of the repo
+        required: false
+      patch:
+        description: Base64 encoded patch content
+        required: false
+      command:
+        description: Command to run
+        required: false
+      ref:
+        description: The repo branch, tag, or commit SHA to checkout
+        required: false
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+        repository: ${{ github.event.inputs.repoName }}
+        ref: ${{ github.event.inputs.ref }}
+    - name: Set node
+      uses: actions/setup-node@v3
+      with:
+        registry-url: https://registry.npmjs.org/
+        node-version: 16.x
+    - name: Setup
+      run: npm i -g @antfu/ni
+    - name: Install
+      run: nci
+    - run: npx changelogithub
+      continue-on-error: true
+      env:
+        GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
+    - run: npm publish
+      env:
+        NODE_AUTH_TOKEN: ${{secrets.NPM_TOKEN}}

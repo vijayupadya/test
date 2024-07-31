@@ -1,0 +1,34 @@
+name: dishait/vite-auto-import-resolvers
+permissions:
+  contents: write
+on:
+  workflow_dispatch:
+    inputs:
+      repoName:
+        description: Name of the repo
+        required: false
+      patch:
+        description: Base64 encoded patch content
+        required: false
+      command:
+        description: Command to run
+        required: false
+      ref:
+        description: The repo branch, tag, or commit SHA to checkout
+        required: false
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+        repository: ${{ github.event.inputs.repoName }}
+        ref: ${{ github.event.inputs.ref }}
+    - name: Set node
+      uses: actions/setup-node@v3
+      with:
+        node-version: 16.x
+    - run: npx changelogithub
+      env:
+        GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}

@@ -1,0 +1,54 @@
+name: FasterXML/jackson-annotations
+on:
+  workflow_dispatch:
+    inputs:
+      repoName:
+        description: Name of the repo
+        required: false
+      patch:
+        description: Base64 encoded patch content
+        required: false
+      command:
+        description: Command to run
+        required: false
+      ref:
+        description: The repo branch, tag, or commit SHA to checkout
+        required: false
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        java_version:
+        - 8
+        - 11
+    env:
+      JAVA_OPTS: -XX:+TieredCompilation -XX:TieredStopAtLevel=1
+    steps:
+    - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
+      with:
+        repository: ${{ github.event.inputs.repoName }}
+        ref: ${{ github.event.inputs.ref }}
+    - name: Set up JDK
+      uses: actions/setup-java@99b8673ff64fbf99d8d325f52d9a5bdedb8483e9
+      with:
+        distribution: temurin
+        java-version: ${{ matrix.java_version }}
+        cache: maven
+        server-id: sonatype-nexus-snapshots
+        server-username: CI_DEPLOY_USERNAME
+        server-password: CI_DEPLOY_PASSWORD
+    - name: Build
+      run: ./mvnw -V -B -ff -ntp verify
+    - name: Extract project Maven version
+      id: projectVersion
+      run: echo "version=$(./mvnw org.apache.maven.plugins:maven-help-plugin:3.3.0:evaluate -DforceStdout -Dexpression=project.version -q)" >> $GITHUB_OUTPUT
+    - name: Deploy snapshot
+      if: github.event_name != 'pull_request' && matrix.java_version == '8' && endsWith(steps.projectVersion.outputs.version, '-SNAPSHOT')
+      env:
+        CI_DEPLOY_USERNAME: ${{ secrets.CI_DEPLOY_USERNAME }}
+        CI_DEPLOY_PASSWORD: ${{ secrets.CI_DEPLOY_PASSWORD }}
+      run: ./mvnw -B -ff -DskipTests -ntp source:jar deploy

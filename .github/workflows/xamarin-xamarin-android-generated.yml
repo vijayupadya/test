@@ -1,0 +1,42 @@
+name: xamarin/xamarin-android
+on:
+  workflow_dispatch:
+    inputs:
+      repoName:
+        description: Name of the repo
+        required: false
+      patch:
+        description: Base64 encoded patch content
+        required: false
+      command:
+        description: Command to run
+        required: false
+      ref:
+        description: The repo branch, tag, or commit SHA to checkout
+        required: false
+jobs:
+  pingRemote:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        repository: ${{ github.event.inputs.repoName }}
+        ref: ${{ github.event.inputs.ref }}
+    - name: Parse commit
+      shell: pwsh
+      id: commit_title
+      run: |
+        Write-Host "Commit message is $Env:COMMIT_MESSAGE"
+
+        $title = ($Env:COMMIT_MESSAGE -split '\n')[0] | ConvertTo-Json
+
+        "COMMIT_TITLE=$title" >> $env:GITHUB_OUTPUT
+      env:
+        COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
+    - name: Update remote repository
+      uses: peter-evans/repository-dispatch@v2
+      with:
+        token: ${{ secrets.SERVICEACCOUNT_PAT }}
+        event-type: sdk_insertion
+        repository: xamarin/sdk-insertions
+        client-payload: '{"repository": "dotnet/android", "branch": "${{ github.ref_name }}", "commit": "${{ github.sha }}", "commit_message": ${{ steps.commit_title.outputs.COMMIT_TITLE }} }'

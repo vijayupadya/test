@@ -26,44 +26,21 @@ jobs:
         tl_name:
         - i386-linux
         - x86_64-linux
-        - x86_64-linuxmusl
-        - aarch64-linux
-        - armhf-linux
         release_build:
         - ${{ startsWith(github.ref, 'refs/tags/') }}
         include:
         - tl_name: i386-linux
-          image: i386/ubuntu:xenial
+          image: i386/debian:buster
           platform: 386
           ci_build: true
           use_qemu: false
           buildsys: ubuntu
         - tl_name: x86_64-linux
-          image: almalinux:8
+          image: debian:buster
           platform: amd64
           ci_build: true
           use_qemu: false
-          buildsys: almalinux
-        - tl_name: x86_64-linuxmusl
-          image: alpine:3.5
-          platform: amd64
-          ci_build: true
-          use_qemu: false
-          buildsys: alpine
-        - tl_name: aarch64-linux
-          image: arm64v8/debian:buster
-          platform: aarch64
-          ci_build: false
-          use_qemu: true
-          qemu_arch: aarch64
-          buildsys: debian
-        - tl_name: armhf-linux
-          image: arm32v7/debian:buster
-          platform: arm/v7
-          ci_build: false
-          use_qemu: true
-          qemu_arch: arm
-          buildsys: debian
+          buildsys: ubuntu
     steps:
     - name: checkout-main
       uses: actions/checkout@v4
@@ -85,22 +62,22 @@ jobs:
         run: |
           cd /work/repo
 
-          .github/scripts/build-tl.sh ${{ matrix.tl_name }} ${{ matrix.buildsys }}
+          .github/scripts/build-asy.sh ${{ matrix.tl_name }} ${{ matrix.buildsys }}
     - name: find file step
       if: ${{ matrix.ci_build || matrix.release_build }}
-      run: ls -l $GITHUB_WORKSPACE/repo/texlive-bin-${{ matrix.tl_name }}.tar.gz
+      run: ls -l $GITHUB_WORKSPACE/repo/asy-${{ matrix.tl_name }}
     - name: save artifact
       if: ${{ matrix.ci_build || matrix.release_build }}
       uses: actions/upload-artifact@v4
       with:
-        name: texlive-bin-${{ matrix.tl_name }}.tar.gz
-        path: ${{ github.workspace }}/repo/texlive-bin-${{ matrix.tl_name }}.tar.gz
+        name: asy-${{ matrix.tl_name }}
+        path: ${{ github.workspace }}/repo/asy-${{ matrix.tl_name }}
         compression-level: 0
     - name: Release
       uses: AButler/upload-release-assets@v3.0
       if: matrix.release_build
       with:
-        files: ${{ github.workspace }}/repo/texlive-bin-${{ matrix.tl_name }}.tar.gz
+        files: ${{ github.workspace }}/repo/asy-${{ matrix.tl_name }}
         repo-token: ${{ secrets.GITHUB_TOKEN }}
   vm_build_job:
     runs-on: ubuntu-latest
@@ -113,13 +90,10 @@ jobs:
         - amd64
         os:
         - freebsd
-        - solaris
         release_build:
         - ${{ startsWith(github.ref, 'refs/tags/') }}
         include:
         - os: freebsd
-          ci_build: true
-        - os: solaris
           ci_build: true
     steps:
     - name: checkout-main
@@ -137,7 +111,7 @@ jobs:
         run: |
           cd repo
 
-          sh .github/scripts/build-tl.sh ${{ matrix.arch }}-${{ matrix.os }} ${{ matrix.os }}
+          sh .github/scripts/build-asy.sh ${{ matrix.arch }}-${{ matrix.os }} ${{ matrix.os }}
     - name: build solaris
       uses: vmactions/solaris-vm@v1
       if: ${{ matrix.os == 'solaris' && (matrix.ci_build || matrix.release_build) }}
@@ -147,21 +121,21 @@ jobs:
         run: |
           cd repo
 
-          sh .github/scripts/build-tl.sh ${{ matrix.arch }}-${{ matrix.os }} ${{ matrix.os }}
+          sh .github/scripts/build-asy.sh ${{ matrix.arch }}-${{ matrix.os }} ${{ matrix.os }}
     - name: find file step
       if: ${{ matrix.ci_build || matrix.release_build }}
-      run: ls -l $GITHUB_WORKSPACE/repo/texlive-bin-${{ matrix.arch }}-${{ matrix.os }}.tar.gz
+      run: ls -l $GITHUB_WORKSPACE/repo/asy-${{ matrix.arch }}-${{ matrix.os }}
     - name: save artifact
       if: ${{ matrix.ci_build || matrix.release_build }}
       uses: actions/upload-artifact@v4
       with:
-        name: texlive-bin-${{ matrix.arch }}-${{ matrix.os }}.tar.gz
-        path: ${{ github.workspace }}/repo/texlive-bin-${{ matrix.arch }}-${{ matrix.os }}.tar.gz
+        name: asy-${{ matrix.arch }}-${{ matrix.os }}
+        path: ${{ github.workspace }}/repo/asy-${{ matrix.arch }}-${{ matrix.os }}
         compression-level: 0
     - name: Release
       uses: AButler/upload-release-assets@v3.0
       if: matrix.release_build
       with:
-        files: ${{ github.workspace }}/repo/texlive-bin-${{ matrix.arch }}-${{ matrix.os }}.tar.gz
+        files: ${{ github.workspace }}/repo/asy-${{ matrix.arch }}-${{ matrix.os }}
         repo-token: ${{ secrets.GITHUB_TOKEN }}
 name: TeX-Live/texlive-source

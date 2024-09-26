@@ -66,18 +66,15 @@ jobs:
       run: |
         pip install --upgrade pip wheel
         pip install -e .
-    - name: 'Az CLI login'
-      if: ${{ github.event.inputs.command != '' }}
+    - name: 'Az CLI login'      
       uses: azure/login@v2
       with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}  
-    - name: Login to ACR
-      if: ${{ github.event.inputs.command != '' }}
+    - name: Login to ACR      
       run: az acr login --name codeexecservice
-    - name: Prepare docker container
-      if: false
+    - name: Prepare docker container      
       shell: bash
       run: |
             python3 << 'EOF'
@@ -258,8 +255,7 @@ jobs:
                 main(**vars(args))
             EOF
 
-    - name: Run SWEBench docker
-      if: ${{ github.event.inputs.command != '' }}
+    - name: Run SWEBench docker      
       shell: bash
       run: |
             imageId="${{ github.event.inputs.imageIds }}"
@@ -301,6 +297,7 @@ jobs:
           fi         
         
     - name: Run custom command on SWE Bench Container
+      if: false
       shell: bash
       run: |       
          if [ -n "${{ github.event.inputs.command }}" ]; then
@@ -319,7 +316,8 @@ jobs:
            echo "Finished running command!"
          fi
     - name: Run swebench harness evaluation (ces)
-      if: env.RAN_CUSTOM_COMMAND != 'true'      
+      if: false
+      #if: env.RAN_CUSTOM_COMMAND != 'true'      
       run: |
         python -m swebench.harness.run_evaluation \
           --predictions_path ${{ github.event.inputs.predictions_path }} \

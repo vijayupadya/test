@@ -119,7 +119,20 @@ jobs:
           else
             echo "No patch input provided. Skipping patch application."
           fi         
-
+          
+    - name: Apply patch locally      
+      shell: bash
+      run: |
+          if [ -n "${{ github.event.inputs.patch }}" ]; then
+            echo "Patch input provided. Applying patch..."
+            echo ""${{ github.event.inputs.patch }}"" | base64 --decode | sed 's/\r$//'  > patch.diff
+            echo ""Decoded patch content:""
+            cat patch.diff 
+            echo ""Apply the patch:""
+            git apply --verbose patch.diff         
+          else
+            echo "No patch input provided. Skipping patch application."
+          fi         
     - name: Run custom command on SWE Bench Container (ces)
       shell: bash
       run: |       

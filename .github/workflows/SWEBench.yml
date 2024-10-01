@@ -47,7 +47,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest-xl]
+        os: [ubuntu-latest]
         python-version: ["3.12"]
     runs-on: ${{ matrix.os }}
     defaults:

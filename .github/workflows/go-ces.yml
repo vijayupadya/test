@@ -7,6 +7,14 @@ on:
         description: 'Base64 encoded code snippet'
         required: false
         default: ''
+      testInput:
+        description: 'test input'
+        required: false
+        default: ''
+      expectedOutput:
+        description: 'expected output from the code for test input'
+        required: false
+        default: ''
         
 jobs:
   run-devcontainer:

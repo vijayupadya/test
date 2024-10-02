@@ -128,6 +128,7 @@ jobs:
             echo ""${{ github.event.inputs.patch }}"" | base64 --decode | sed 's/\r$//'  > patch.diff
             echo ""Decoded patch content:""
             cat patch.diff 
+            echo "" ""
             echo ""Apply the patch:""
             git apply --verbose patch.diff         
           else

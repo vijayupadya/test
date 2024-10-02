@@ -18,7 +18,7 @@ on:
 
 jobs:
   run-CodeSnippet:
-    runs-on: ubuntu-latest-xl
+    runs-on: ubuntu-latest
     container:
       #image: mcr.microsoft.com/vscode/devcontainers/universal:2-linux  # Specify your container image
       image: mcr.microsoft.com/vscode/devcontainers/python:3  # Specify your container image

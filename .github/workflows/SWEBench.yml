@@ -124,38 +124,44 @@ jobs:
     - name: Apply patch locally    
       shell: bash
       run: |
-          if [ -n "${{ github.event.inputs.patch }}" ]; then
-            echo "PWD="
-            pwd
-            echo " "
-            echo "ls="
-            ls
-            echo " "
-            echo "Patch input provided. It value is"
-            decoded_patch=$(echo ""${{ github.event.inputs.patch }}"" | base64 --decode | sed 's/\r$//')
-            echo "$decoded_patch"
-            json_string=$(cat <<EOF
-            [
-             {
-              "instance_id": "${{ github.event.inputs.imageIds }}",
-              "model_patch": "$decoded_patch",
-              "model_name_or_path": "GenAI"
-             }
-            ]
-            EOF
-            )
-            
-            # Write the JSON string to a file
-            echo "$json_string" > prediction.json
-            echo " "
-            echo "Prediction file content:"
-            prediction.json 
-            echo " "
-            echo "Wrote prediction file"
-            ls           
-          else
-            echo "No patch input provided. Skipping patch application."
-          fi     
+             if [ -n "${{ github.event.inputs.patch }}" ]; then
+             echo "PWD="
+             pwd
+             echo " "
+             echo "ls="
+             ls
+             echo " "
+             echo "Patch input provided. Its value is:"
+             
+             # Decode the patch input
+             decoded_patch=$(echo "${{ github.event.inputs.patch }}" | base64 --decode | sed 's/\r$//')
+             echo "$decoded_patch"
+             
+             # Properly create JSON string using a heredoc without extra spaces         
+             json_string=$(cat <<EOF
+               [
+                 {
+                   "instance_id": "${{ github.event.inputs.imageIds }}",
+                   "model_patch": "$decoded_patch",
+                   "model_name_or_path": "test"
+                 }
+               ]
+             EOF
+               )
+      
+             # Write the JSON string to a file
+             echo "$json_string" > prediction.json
+             echo " "
+             echo "Prediction file content:"
+             
+             # Display the content of prediction.json
+             cat prediction.json
+             echo " "
+             echo "Wrote prediction file"
+             ls           
+             else
+             echo "No patch input provided. Skipping patch application."
+             fi
     - name: patching locally
       if: false
       shell: bash

@@ -71,7 +71,7 @@ jobs:
             echo "Running tests:"
             echo "========================"
             rn code.go code_test.go
-            go test code.go
+            go test code_test.go
           fi
 
           echo "========================"

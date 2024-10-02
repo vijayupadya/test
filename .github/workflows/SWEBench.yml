@@ -221,6 +221,11 @@ jobs:
     - name: Get SWEBench eval test result (ces)
       if: env.RAN_CUSTOM_COMMAND != 'true'
       run: |        
+        echo "ls: "
+        ls ./logs/run_evaluation
+        echo " "
+        ls ./logs/run_evaluation/${{ github.event.inputs.run_id }}
+        echo " "
         ls -R ./logs/run_evaluation/${{ github.event.inputs.run_id }}/${{ github.event.inputs.predictions_path }}
         logsDir="./logs/run_evaluation/${{ github.event.inputs.run_id }}/${{ github.event.inputs.predictions_path }}/${{ github.event.inputs.imageIds }}"
         echo "Contents of test log:"

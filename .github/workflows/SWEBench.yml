@@ -137,9 +137,9 @@ jobs:
             json_string=$(cat <<EOF
             [
              {
-              "instance_id": imageIds,
+              "instance_id": "${{ github.event.inputs.imageIds }}",
               "model_patch": "$decoded_patch",
-              "model_name_or_path": "GenAI",
+              "model_name_or_path": "GenAI"
              }
             ]
             EOF

@@ -57,8 +57,8 @@ jobs:
           echo "Running custom command:"
           echo "========================"
 
-          containsMainPackage=$(grep -c "package main" code.go)
-          containsMainFunction=$(grep -c "func main()" code.go)
+          containsMainPackage=$(grep -c "package main" code.go || true)
+          containsMainFunction=$(grep -c "func main()" code.go || true)
 
           echo "main package $containsMainPackage"
           echo "main function $containsMainFunction"

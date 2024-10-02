@@ -60,6 +60,9 @@ jobs:
           containsMainPackage=$(grep -c "package main" code.go)
           containsMainFunction=$(grep -c "func main()" code.go)
 
+          echo "main package $containsMainPackage"
+          echo "main function $containsMainFunction"
+
           if [ "$containsMainPackage" -gt 0 ] && [ "$containsMainFunction" -gt 0 ]; then
             echo "Running main package:"
             echo "========================"

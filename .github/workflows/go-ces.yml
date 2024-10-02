@@ -70,7 +70,16 @@ jobs:
           else
             echo "Running tests:"
             echo "========================"
-            go test code.go
+            cat << 'EOF' > code_test.go
+            package main
+
+            import (
+              "testing"
+            )
+
+            ${{ env.CODE }}
+            EOF
+            go test -v code_test.go
           fi
 
           echo "========================"

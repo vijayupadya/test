@@ -1,0 +1,121 @@
+name: Code Execution - python2
+
+on:
+   workflow_dispatch:
+    inputs:
+      code:
+        description: 'Base64 encoded code snippet'
+        required: false
+        default: ''
+      testInput:
+        description: 'test input'
+        required: false
+        default: ''
+      expectedOutput:
+        description: 'expected output from the code for test input'
+        required: false
+        default: ''
+
+jobs:
+  run-CodeSnippet:
+    runs-on: ubuntu-latest-xl
+    container:
+      image: python:2.7
+      options: --privileged  # Optional: Use if your container needs privileged mode
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+
+      - name: Decode code snippet
+        shell: bash
+        run: |
+         if [ -n "${{ github.event.inputs.code }}" ]; then
+           echo "Start decoding code"
+           echo "${{ github.event.inputs.code }}"
+           echo "${{ github.event.inputs.code }}" | base64 --decode | sed 's/\r$//' > codeFile
+           echo "Writing code content..."
+           {
+               echo 'CODE<<EOF'
+               cat codeFile
+               echo EOF
+           } >> $GITHUB_ENV
+         fi
+         echo "Done writing"
+   
+      - name: Run code snippet (ces)
+        shell: bash
+        run: |
+              cat << 'EOF' > code.py
+              ${{ env.CODE }}
+              EOF
+              ls
+              echo  "======================="
+              echo "Running code"
+              echo  "======================="
+              echo "${{ github.event.inputs.testInput }}" |  python2 code.py > output.txt
+              echo "========================"
+              echo "!Finished executing code!"
+
+
+      - name: Compare and Log test result
+        shell: bash
+        run: |
+              EXPECTED="${{ github.event.inputs.expectedOutput }}"
+              ACTUAL=$(cat output.txt)
+
+               # Visualize line endings
+              echo "EXPECTED OUTPUT:"
+              echo "$EXPECTED" | cat -A
+
+              echo "ACTUAL OUTPUT:"
+              echo "$ACTUAL" | cat -A 
+
+              # Write a Python script to process the inputs
+              cat << 'EOF' > logTestResult.py
+              import sys
+
+              def main():
+                    # sys.argv[1] is passed as an argument and the '\\n' is replaced with actual newlines.
+                    expected = sys.argv[1].replace('\\n', '\n')
+                    # Reading the actual input from stdin.
+                    actual = sys.stdin.read()
+
+                    # Split the expected and actual input into arrays based on newline characters.
+                    expected_array = expected.strip().split('\n')
+                    actual_array = actual.strip().split('\n')
+
+                    print("Expected array length:", len(expected_array))
+                    print("Actual array length:", len(actual_array))
+
+                    pass_count = 0
+                    fail_count = 0
+
+                    # Iterate through the larger of the two arrays.
+                    for i in range(max(len(expected_array), len(actual_array))):
+                        if i < len(expected_array) and i < len(actual_array):
+                            if expected_array[i] == actual_array[i]:
+                                pass_count += 1
+                            else:
+                                fail_count += 1
+                                print("Test {} Failed".format(i + 1))
+                                print("Expected: '{}'".format(expected_array[i]))
+                                print("Actual: '{}'".format(actual_array[i]))
+                        else:
+                            fail_count += 1
+                            print("Test {} Failed (Missing in one of the arrays)".format(i + 1))
+
+                    
+                    print "Tests Passed: {}".format(pass_count)
+                    print "Tests Passed: {}".format(fail_count)
+
+              if __name__ == "__main__":
+                 main()
+              EOF
+
+              # Run the Python script
+              python2 logTestResult.py "$EXPECTED" <<< "$ACTUAL"
+              echo "========================"
+              echo "!!== RUN COMPLETED ==!!"
+              echo "========================"

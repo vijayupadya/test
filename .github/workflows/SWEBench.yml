@@ -119,8 +119,48 @@ jobs:
           else
             echo "No patch input provided. Skipping patch application."
           fi         
-          
-    - name: Apply patch locally      
+
+
+    - name: Apply patch locally    
+      shell: bash
+      run: |
+          if [ -n "${{ github.event.inputs.patch }}" ]; then
+            echo "PWD="
+            pwd
+            echo " "
+            echo "ls="
+            ls
+            echo " "
+            echo "Patch input provided. It value is"
+            decoded_patch=$(echo ""${{ github.event.inputs.patch }}"" | base64 --decode | sed 's/\r$//')
+            # Now you can use the variable decoded_patch
+            echo "$decoded_patch"
+
+            # Create the JSON string
+            json_string=$(cat <<EOF
+            [
+             {
+              "instance_id": imageIds,
+              "model_patch": "$decoded_patch",
+              "model_name_or_path": "GenAI",
+             }
+            ]
+            EOF
+            )
+            
+            # Write the JSON string to a file
+            echo "$json_string" > prediction.json
+            echo " "
+            echo "Prediction file content:"
+            prediction.json 
+            echo " "
+            echo "Wrote prediction file"
+            ls           
+          else
+            echo "No patch input provided. Skipping patch application."
+          fi     
+    - name: patching locally
+      if: false
       shell: bash
       run: |
           if [ -n "${{ github.event.inputs.patch }}" ]; then
@@ -166,7 +206,7 @@ jobs:
       if: env.RAN_CUSTOM_COMMAND != 'true'      
       run: |
         python -m swebench.harness.run_evaluation \
-          --predictions_path ${{ github.event.inputs.predictions_path }} \
+          --predictions_path prediction.json \
           --max_workers ${{ github.event.inputs.max_workers }} \
           --instance_ids ${{ github.event.inputs.imageIds }} \
           --run_id ${{ github.event.inputs.run_id }} \

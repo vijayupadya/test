@@ -135,7 +135,10 @@ jobs:
              
              # Decode the patch input
              decoded_patch2=$(echo "${{ github.event.inputs.patch }}" | base64 --decode | sed 's/\r$//')
-             decoded_patch=$(echo "${{ github.event.inputs.patch }}" | base64 --decode | sed 's/\r//g' | sed ':a;N;$!ba;s/\n/\\n/g')
+             #decoded_patch1=$(echo "${{ github.event.inputs.patch }}" | base64 --decode | sed 's/\r//g' | sed ':a;N;$!ba;s/\n/\\n/g')
+             decoded_patch=$(echo "${{ github.event.inputs.patch }}"  | base64 --decode | sed 's/\r//g' | sed ':a;N;$!ba;s/\n/\\n/g' | sed 's/"/\\"/g')
+
+
              echo "$decoded_patch"
              
              # Properly create JSON string using a heredoc without extra spaces         

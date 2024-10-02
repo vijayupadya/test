@@ -18,7 +18,7 @@ on:
 
 jobs:
   run-CodeSnippet:
-    runs-on: ubuntu-latest-xl
+    runs-on: ubuntu-latest
     container:
       image: python:2.7
       options: --privileged  # Optional: Use if your container needs privileged mode

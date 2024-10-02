@@ -129,8 +129,9 @@ jobs:
             echo ""Decoded patch content:""
             cat patch.diff 
             echo "" ""
-            echo ""Apply the patch:""
-            git apply --verbose patch.diff         
+            echo ""Applying the patch...""
+            git apply --verbose patch.diff
+            echo ""Done""
           else
             echo "No patch input provided. Skipping patch application."
           fi         

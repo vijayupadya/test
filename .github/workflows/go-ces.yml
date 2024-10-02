@@ -40,7 +40,7 @@ jobs:
                echo EOF
            } >> $GITHUB_ENV
          fi
-      
+
       - name: Print env values for debugging
         shell: bash
         run: |
@@ -53,9 +53,23 @@ jobs:
           cat << 'EOF' > code.go
           ${{ env.CODE }}
           EOF
+
           echo "Running custom command:"
           echo "========================"
-          go run code.go
+
+          containsMainPackage=$(grep -c "package main" code.go)
+          containsMainFunction=$(grep -c "func main()" code.go)
+
+          if [ "$containsMainPackage" -gt 0 ] && [ "$containsMainFunction" -gt 0 ]; then
+            echo "Running main package:"
+            echo "========================"
+            go run code.go
+          else
+            echo "Running tests:"
+            echo "========================"
+            go test code.go
+          fi
+
           echo "========================"
           echo "!!== RUN COMPLETED ==!!"
           echo "End devContainer run"

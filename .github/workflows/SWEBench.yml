@@ -134,7 +134,8 @@ jobs:
              echo "Patch input provided. Its value is:"
              
              # Decode the patch input
-             decoded_patch=$(echo "${{ github.event.inputs.patch }}" | base64 --decode | sed 's/\r$//')
+             decoded_patch2=$(echo "${{ github.event.inputs.patch }}" | base64 --decode | sed 's/\r$//')
+             decoded_patch=$(echo "${{ github.event.inputs.patch }}" | base64 --decode | sed 's/\r//g' | sed ':a;N;$!ba;s/\n/\\n/g')
              echo "$decoded_patch"
              
              # Properly create JSON string using a heredoc without extra spaces         

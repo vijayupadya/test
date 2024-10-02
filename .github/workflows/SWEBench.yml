@@ -213,14 +213,19 @@ jobs:
           --dataset_name "princeton-nlp/SWE-bench_Verified"
     - name: Get SWEBench eval test result (ces)
       if: env.RAN_CUSTOM_COMMAND != 'true'
-      run: |        
+      run: |
+        if [ -n "${{ github.event.inputs.patch }}" ]; then
+             name="genAI"
+        else
+             name="gold"
+        fi
         echo "ls: "
         ls ./logs/run_evaluation
         echo " "
         ls ./logs/run_evaluation/${{ github.event.inputs.run_id }}
         echo " "
-        ls -R ./logs/run_evaluation/${{ github.event.inputs.run_id }}/genAI
-        logsDir="./logs/run_evaluation/${{ github.event.inputs.run_id }}/genAI/${{ github.event.inputs.imageIds }}"
+        ls -R ./logs/run_evaluation/${{ github.event.inputs.run_id }}/$name
+        logsDir="./logs/run_evaluation/${{ github.event.inputs.run_id }}/$name/${{ github.event.inputs.imageIds }}"
         echo "Contents of test log:"
         echo "========================="
         cat "$logsDir/test_output.txt"

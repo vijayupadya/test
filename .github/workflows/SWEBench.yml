@@ -223,6 +223,14 @@ jobs:
         echo " "
         ls ./logs/run_evaluation/${{ github.event.inputs.run_id }}
         echo " "
+        if [ -f "patch.diff" ]; then
+          echo "patch.diff content:"
+          echo "----------------"
+          cat "<file>"
+          echo "----------------"
+        else
+          echo "patch.diff does not exist."
+        fi 
         ls -R ./logs/run_evaluation/${{ github.event.inputs.run_id }}/$name
         logsDir="./logs/run_evaluation/${{ github.event.inputs.run_id }}/$name/${{ github.event.inputs.imageIds }}"
         echo "Contents of test log:"

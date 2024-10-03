@@ -59,7 +59,7 @@ jobs:
           echo "========================"
           echo "!!== RUN COMPLETED ==!!"
           echo "End devContainer run"
-        
+
 
 
 	  - name: Compare and Log test result

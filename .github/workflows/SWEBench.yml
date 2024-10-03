@@ -150,7 +150,6 @@ jobs:
              # Display the content of prediction.json
              cat prediction.json
              echo " "
-             echo "Wrote prediction file"
              else
              echo "No patch input provided. Skipping patch application."
              fi

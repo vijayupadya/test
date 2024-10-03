@@ -62,7 +62,7 @@ jobs:
 
         
 
-	  - name: Compare and Log test result
+      - name: Compare and Log test result
         shell: bash
         run: |
               EXPECTED="${{ github.event.inputs.expectedOutput }}"

@@ -55,7 +55,9 @@ jobs:
           EOF
           echo "Running custom command:"
           echo "========================"
-          php code.php
+          echo "${{ github.event.inputs.testInput }}" | php code.php > output.txt
           echo "========================"
           echo "!!== RUN COMPLETED ==!!"
           echo "End devContainer run"
+        
+        $$LOG_TEST_RESULT$$

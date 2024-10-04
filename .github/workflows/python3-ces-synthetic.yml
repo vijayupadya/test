@@ -172,7 +172,7 @@ jobs:
                       'Error': '\n'.join(errors) if errors else ''
                   }
 
-                  print(json.dumps(aggregated_result, indent=2))
+                  print(json.dumps(aggregated_result))
 
               if __name__ == '__main__':
                   main()

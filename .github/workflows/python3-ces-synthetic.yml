@@ -79,8 +79,8 @@ jobs:
               for test_file in test/*; do
                   file_name=$(basename "$test_file")
                   echo "Running $file_name"
-                  python3 "$file_name" >> output.txt 2>&1
-                  echo "========================" >> output.txt
+                  python3 "$file_name" 2>&1 | tee -a output.txt
+                  echo "========================" | tee -a output.txt
               done
               echo "========================"
               echo "!Finished executing code!"

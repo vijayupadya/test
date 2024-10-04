@@ -73,18 +73,60 @@ jobs:
               cp source/* .
               cp test/* .
               ls
-
-              python -m pip install requests
-              python -m pip install shapely
-
               echo  "======================="
               echo "Running Test"
               echo  "======================="
+              cat << 'EOF' > custom_test_runner.py
+              import unittest
+              import json
+
+              class CustomTestResult(unittest.TextTestResult):
+                  def __init__(self, *args, **kwargs):
+                      super().__init__(*args, **kwargs)
+                      self.passed = 0
+                      self.failed = 0
+                      self.errors = []
+
+                  def addSuccess(self, test):
+                      super().addSuccess(test)
+                      self.passed += 1
+
+                  def addFailure(self, test, err):
+                      super().addFailure(test, err)
+                      self.failed += 1
+                      self.errors.append(self._exc_info_to_string(err, test))
+
+                  def addError(self, test, err):
+                      super().addError(test, err)
+                      self.failed += 1
+                      self.errors.append(self._exc_info_to_string(err, test))
+
+              class CustomTestRunner(unittest.TextTestRunner):
+                  def _makeResult(self):
+                      return CustomTestResult(self.stream, self.descriptions, self.verbosity)
+
+                  def run(self, test):
+                      result = super().run(test)
+                      output = {
+                          "Passed": result.passed,
+                          "Failed": result.failed,
+                          "Error": "\n".join(result.errors) if result.errors else ""
+                      }
+                      print(json.dumps(output, indent=2))
+                      return result
+
+              if __name__ == "__main__":
+                  loader = unittest.TestLoader()
+                  suite = loader.discover('.')
+                  runner = CustomTestRunner()
+                  runner.run(suite)
+              EOF
+
               for test_file in test/*; do
                   file_name=$(basename "$test_file")
                   echo "Running $file_name"
-                  python3 "$file_name" 2>&1 | tee -a output.txt
-                  echo "========================" | tee -a output.txt
+                  python3 custom_test_runner.py "$file_name" | tee -a output.txt
+                  echo "========================"
               done
               echo "========================"
               echo "!Finished executing code!"

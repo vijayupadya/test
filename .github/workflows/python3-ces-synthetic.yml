@@ -11,10 +11,6 @@ on:
         description: 'Base64 encoded JSON blob of files to be tested'
         required: false
         default: ''
-      expectedOutput:
-        description: 'expected output from the code for test input'
-        required: false
-        default: ''
 
 jobs:
   run-CodeSnippet:

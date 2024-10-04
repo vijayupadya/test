@@ -172,6 +172,7 @@ jobs:
                       'Error': '\n'.join(errors) if errors else ''
                   }
 
+                  print('======= RESULTS =======')
                   print(json.dumps(aggregated_result))
 
               if __name__ == '__main__':

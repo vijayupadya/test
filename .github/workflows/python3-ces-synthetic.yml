@@ -81,6 +81,8 @@ jobs:
               cat << 'EOF' > custom_test_runner.py
               import unittest
               import json
+              import sys
+              import os
 
               class CustomTestResult(unittest.TextTestResult):
                   def __init__(self, *args, **kwargs):
@@ -115,11 +117,17 @@ jobs:
                           "Error": "\n".join(result.errors) if result.errors else ""
                       }
                       print(json.dumps(output, indent=2))
+                      # Write the result to a JSON file in the results directory
+                      test_file_name = sys.argv[1]
+                      result_file_name = os.path.join('results', f"{os.path.splitext(test_file_name)[0]}.json")
+                      with open(result_file_name, 'w') as f:
+                          json.dump(output, f, indent=2)
                       return result
 
               if __name__ == "__main__":
+                  test_file = sys.argv[1]
                   loader = unittest.TestLoader()
-                  suite = loader.discover('.')
+                  suite = loader.discover('.', pattern=test_file)
                   runner = CustomTestRunner()
                   runner.run(suite)
               EOF
@@ -127,7 +135,7 @@ jobs:
               for test_file in test/*; do
                   file_name=$(basename "$test_file")
                   echo "Running $file_name"
-                  python3 custom_test_runner.py "$file_name" | tee -a output.txt
+                  python3 custom_test_runner.py "$file_name"
                   echo "========================"
               done
               echo "========================"

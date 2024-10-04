@@ -67,7 +67,7 @@ jobs:
 
 
  
-      - name: Run test snippet (ces)
+      - name: Run code snippet (ces)
         shell: bash
         run: |
               cp source/* .

@@ -120,6 +120,7 @@ jobs:
                       # Write the result to a JSON file in the results directory
                       test_file_name = sys.argv[1]
                       result_file_name = os.path.join('results', f"{os.path.splitext(test_file_name)[0]}.json")
+                      os.makedirs(os.path.dirname(result_file_name), exist_ok=True)
                       with open(result_file_name, 'w') as f:
                           json.dump(output, f, indent=2)
                       return result

@@ -30,6 +30,9 @@ jobs:
 
 
         
+      - name: Unpack source and test files
+        shell: bash
+        run: |
               # Write a Python script to expand base 64 encoded JSON file system
               # into individual files in a "bin" directory.
               SOURCE="${{ github.event.inputs.source }}"

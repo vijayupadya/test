@@ -73,6 +73,10 @@ jobs:
               cp source/* .
               cp test/* .
               ls
+
+              python -m pip install requests
+              python -m pip install shapely
+
               echo  "======================="
               echo "Running Test"
               echo  "======================="

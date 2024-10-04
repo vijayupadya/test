@@ -67,7 +67,7 @@ jobs:
 
 
  
-      - name: Run code snippet (ces)
+      - name: Run test snippet (ces)
         shell: bash
         run: |
               cp source/* .
@@ -77,8 +77,9 @@ jobs:
               echo "Running Test"
               echo  "======================="
               for test_file in test/*; do
-                  echo "Running $test_file"
-                  python3 "$test_file" >> output.txt 2>&1
+                  file_name=$(basename "$test_file")
+                  echo "Running $file_name"
+                  python3 "$file_name" >> output.txt 2>&1
                   echo "========================" >> output.txt
               done
               echo "========================"

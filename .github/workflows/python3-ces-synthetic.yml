@@ -143,59 +143,43 @@ jobs:
               echo "!Finished executing code!"
 
       
-
       - name: Compare and Log test result
         shell: bash
         run: |
-              EXPECTED="${{ github.event.inputs.expectedOutput }}"
-              ACTUAL=$(cat output.txt)
-
-               # Visualize line endings
-              echo "EXPECTED OUTPUT:"
-              echo "$EXPECTED" | cat -A
-
-              echo "ACTUAL OUTPUT:"
-              echo "$ACTUAL" | cat -A 
-
-              # Write a Python script to process the inputs
-              cat << 'EOF' > logTestResult.py
-              import sys
+              # Write a Python script to aggregate results from the ./results folder
+              cat << 'EOF' > aggregate_results.py
+              import os
+              import json
 
               def main():
-                    expected = sys.argv[1].replace('\\n', '\n')
-                    actual = sys.stdin.read()
+                  results_dir = './results'
+                  total_passed = 0
+                  total_failed = 0
+                  errors = []
 
-                    expected_array = expected.strip().split('\n')
-                    actual_array = actual.strip().split('\n')
+                  for file_name in os.listdir(results_dir):
+                      if file_name.endswith('.json'):
+                          with open(os.path.join(results_dir, file_name), 'r') as f:
+                              result = json.load(f)
+                              total_passed += result.get('Passed', 0)
+                              total_failed += result.get('Failed', 0)
+                              if result.get('Error'):
+                                  errors.append(result['Error'])
 
-                    print("Expected array length:", len(expected_array))
-                    print("Actual array length:", len(actual_array))
+                  aggregated_result = {
+                      'Passed': total_passed,
+                      'Failed': total_failed,
+                      'Error': '\n'.join(errors) if errors else ''
+                  }
 
-                    pass_count = 0
-                    fail_count = 0
+                  print(json.dumps(aggregated_result, indent=2))
 
-                    for i in range(max(len(expected_array), len(actual_array))):
-                        if i < len(expected_array) and i < len(actual_array):
-                            if expected_array[i] == actual_array[i]:
-                                pass_count += 1
-                            else:
-                                fail_count += 1
-                                print(f"Test {i + 1} Failed")
-                                print(f"Expected: '{expected_array[i]}'")
-                                print(f"Actual: '{actual_array[i]}'")
-                        else:
-                            fail_count += 1
-                            print(f"Test {i + 1} Failed (Missing in one of the arrays)")
-
-                    print("Tests Passed:", pass_count)
-                    print("Tests Failed:", fail_count)
-
-              if __name__ == "__main__":
-                 main()
+              if __name__ == '__main__':
+                  main()
               EOF
 
-              # Run the Python script
-              python3 logTestResult.py "$EXPECTED" <<< "$ACTUAL"
+              # Run the Python script to aggregate results
+              python3 aggregate_results.py
               echo "========================"
               echo "!!== RUN COMPLETED ==!!"
               echo "========================"

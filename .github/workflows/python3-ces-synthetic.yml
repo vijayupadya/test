@@ -71,8 +71,6 @@ jobs:
               ls
               echo  "======================="
               echo "Running Test"
-              python -m pip install requests
-              python -m pip install shapely
               echo  "======================="
               cat << 'EOF' > custom_test_runner.py
               import unittest

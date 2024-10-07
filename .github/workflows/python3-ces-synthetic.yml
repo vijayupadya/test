@@ -69,8 +69,6 @@ jobs:
               ls
               echo  "======================="
               echo "Running Test"
-              python -m pip install requests
-              python -m pip install shapely
               echo  "======================="
               mkdir -p results
               cat << 'EOF' > custom_test_runner.py
@@ -145,7 +143,6 @@ jobs:
               cat << 'EOF' > aggregate_results.py
               import os
               import json
-              import base64
 
               def main():
                   results_dir = './results'
@@ -162,13 +159,14 @@ jobs:
                               if result.get('Error'):
                                   errors.append(result['Error'])
 
+                  aggregated_result = {
+                      'Passed': total_passed,
+                      'Failed': total_failed,
+                      'Error': '\n'.join(errors) if errors else ''
+                  }
+
                   print('======= RESULTS =======')
-                  print("Tests Passed:", total_passed)
-                  print("Tests Failed:", total_failed)
-                  if errors:
-                      errors_text = '\n'.join(errors) if errors else ''
-                      errors_base64 = base64.b64encode(errors_text.encode('utf-8')).decode('utf-8')
-                      print("Test Errors:", errors_base64)
+                  print(json.dumps(aggregated_result))
 
               if __name__ == '__main__':
                   main()

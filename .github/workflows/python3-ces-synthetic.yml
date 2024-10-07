@@ -162,14 +162,13 @@ jobs:
                               if result.get('Error'):
                                   errors.append(result['Error'])
 
-                  aggregated_result = {
-                      'Passed': total_passed,
-                      'Failed': total_failed,
-                      'Error': '\n'.join(errors) if errors else ''
-                  }
-
                   print('======= RESULTS =======')
-                  print(json.dumps(aggregated_result))
+                  print("Tests Passed:", pass_count)
+                  print("Tests Failed:", fail_count)
+                  if errors:
+                      errors_text = '\n'.join(errors) if errors else ''
+                      errors_base64 = base64.b64encode(errors_text.encode('utf-8')).decode('utf-8')
+                      print("Test Errors:", errors_base64)
 
               if __name__ == '__main__':
                   main()

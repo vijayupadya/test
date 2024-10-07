@@ -126,6 +126,7 @@ jobs:
                   suite = loader.discover('.', pattern=test_file)
                   runner = CustomTestRunner()
                   runner.run(suite)
+              EOF
 
               for test_file in test/*; do
                   file_name=$(basename "$test_file")

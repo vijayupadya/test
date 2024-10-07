@@ -94,12 +94,12 @@ jobs:
                   def addFailure(self, test, err):
                       super().addFailure(test, err)
                       self.failed += 1
-                      self.errors.append(self._exc_info_to_string(err, test))
+                      self.errors.append((test, self._exc_info_to_string(err, test)))
 
                   def addError(self, test, err):
                       super().addError(test, err)
                       self.failed += 1
-                      self.errors.append(self._exc_info_to_string(err, test))
+                      self.errors.append((test, self._exc_info_to_string(err, test)))
 
               class CustomTestRunner(unittest.TextTestRunner):
                   def _makeResult(self):
@@ -110,7 +110,7 @@ jobs:
                       output = {
                           "Passed": result.passed,
                           "Failed": result.failed,
-                          "Error": "\n".join(result.errors) if result.errors else ""
+                          "Error": "\n".join([err for test, err in result.errors]) if result.errors else ""
                       }
                       print(json.dumps(output, indent=2))
                       # Write the result to a JSON file in the results directory
@@ -127,7 +127,6 @@ jobs:
                   suite = loader.discover('.', pattern=test_file)
                   runner = CustomTestRunner()
                   runner.run(suite)
-              EOF
 
               for test_file in test/*; do
                   file_name=$(basename "$test_file")

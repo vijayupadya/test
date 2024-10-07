@@ -24,7 +24,6 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
-
       
       - name: Unpack source and test files
         shell: bash
@@ -62,7 +61,6 @@ jobs:
 
 
 
- 
       - name: Run code snippet (ces)
         shell: bash
         run: |
@@ -74,6 +72,7 @@ jobs:
               python -m pip install requests
               python -m pip install shapely
               echo  "======================="
+              mkdir -p results
               cat << 'EOF' > custom_test_runner.py
               import unittest
               import json

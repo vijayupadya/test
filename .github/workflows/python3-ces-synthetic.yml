@@ -163,8 +163,8 @@ jobs:
                                   errors.append(result['Error'])
 
                   print('======= RESULTS =======')
-                  print("Tests Passed:", pass_count)
-                  print("Tests Failed:", fail_count)
+                  print("Tests Passed:", total_passed)
+                  print("Tests Failed:", total_failed)
                   if errors:
                       errors_text = '\n'.join(errors) if errors else ''
                       errors_base64 = base64.b64encode(errors_text.encode('utf-8')).decode('utf-8')

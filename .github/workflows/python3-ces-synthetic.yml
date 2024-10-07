@@ -145,6 +145,7 @@ jobs:
               cat << 'EOF' > aggregate_results.py
               import os
               import json
+              import base64
 
               def main():
                   results_dir = './results'

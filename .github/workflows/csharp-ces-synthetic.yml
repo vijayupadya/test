@@ -84,6 +84,7 @@ jobs:
         run: |
               cp source/* cs/
               cp test/* cs/
+              ls cs/
 
       - name: Run code (ces)
         shell: bash

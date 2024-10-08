@@ -49,22 +49,22 @@ jobs:
              echo "=====Custom command:"
              echo "${{ env.CODE }}"
      
-      # - name: Run code (ces)
-      #   shell: bash
-      #   run: |
-      #         export PATH="$PATH:/github/home/.dotnet/tools"
-      #         cd cs
-      #         cat << 'EOF' > Program.cs
-      #         ${{ env.CODE }}
-      #         EOF
-      #         echo "Doing build:"
-      #         echo "========================"
-      #         dotnet build
-      #         echo  "======================="
-      #         cd bin/Debug/net8.0
-      #         echo "Running code:"
-      #         echo  "======================="
-      #         dotnet ConsoleApp.dll
-      #         echo "========================"
-      #         echo "!!== RUN COMPLETED ==!!"
-      #         echo "End devContainer run"
+      - name: Run code (ces)
+        shell: bash
+        run: |
+              export PATH="$PATH:/github/home/.dotnet/tools"
+              cd cs
+              cat << 'EOF' > Program.cs
+              ${{ env.CODE }}
+              EOF
+              echo "Doing build:"
+              echo "========================"
+              dotnet build
+              echo  "======================="
+              cd bin/Debug/net8.0
+              echo "Running code:"
+              echo  "======================="
+              dotnet ConsoleApp.dll
+              echo "========================"
+              echo "!!== RUN COMPLETED ==!!"
+              echo "End devContainer run"

@@ -24,19 +24,21 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      # Setting up Python because the default Python installation in the image was having
-      # some issues (couldn't import the built-in module 'json')
+      # Setting up Python because the default Python 3.11 installation within the container image was having
+      # some issues (couldn't import the built-in module 'json', for some reason).
+      #
+      # Note that both the `python` and `python3` commands will invoke the same Python version installed in this step.
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
 
-      # Print the Python version
-      - name: Print Python version
-        run: python3 --version
+      # # Print the `python3` version
+      # - name: Print Python version
+      #   run: python3 --version
       
-      # Print the Python version
-      - name: Print Python version
-        run: python --version
+      # # Print the `python` version
+      # - name: Print Python version
+      #   run: python --version
 
       # Decode the source files and test files and save them to the source/ and test/ folder
       

@@ -26,7 +26,7 @@ jobs:
 
       # Print the Python version
       - name: Print Python version
-        run: python --version
+        run: python3 --version
 
       # Decode the source files and test files and save them to the source/ and test/ folder
       

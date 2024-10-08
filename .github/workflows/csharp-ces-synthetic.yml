@@ -82,6 +82,9 @@ jobs:
       - name: Run code snippet (ces)
         shell: bash
         run: |
+              # Create the source and test folders only if they don't already exist
+              mkdir -p source
+              mkdir -p test
               cp -rf source/* cs/
               cp -rf test/* cs/
               ls cs/

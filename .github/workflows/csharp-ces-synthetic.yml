@@ -1,4 +1,4 @@
-name: Code Execution - python3
+name: Code Execution - synthetic - dotnet
 
 on:
    workflow_dispatch:

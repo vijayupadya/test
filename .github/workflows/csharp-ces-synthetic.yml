@@ -24,7 +24,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
-
+      # Decode the source files and test files and save them to the source/ and test/ folder
       
       - name: Unpack source and test files
         shell: bash
@@ -62,119 +62,28 @@ jobs:
 
 
 
- 
       - name: Run code snippet (ces)
         shell: bash
         run: |
-              cp source/* .
-              cp test/* .
-              ls
-              echo  "======================="
-              echo "Running Test"
-              echo  "======================="
-              cat << 'EOF' > custom_test_runner.py
-              import unittest
-              import json
-              import sys
-              import os
 
-              class CustomTestResult(unittest.TextTestResult):
-                  def __init__(self, *args, **kwargs):
-                      super().__init__(*args, **kwargs)
-                      self.passed = 0
-                      self.failed = 0
-                      self.errors = []
-
-                  def addSuccess(self, test):
-                      super().addSuccess(test)
-                      self.passed += 1
-
-                  def addFailure(self, test, err):
-                      super().addFailure(test, err)
-                      self.failed += 1
-                      self.errors.append(self._exc_info_to_string(err, test))
-
-                  def addError(self, test, err):
-                      super().addError(test, err)
-                      self.failed += 1
-                      self.errors.append(self._exc_info_to_string(err, test))
-
-              class CustomTestRunner(unittest.TextTestRunner):
-                  def _makeResult(self):
-                      return CustomTestResult(self.stream, self.descriptions, self.verbosity)
-
-                  def run(self, test):
-                      result = super().run(test)
-                      output = {
-                          "Passed": result.passed,
-                          "Failed": result.failed,
-                          "Error": "\n".join(result.errors) if result.errors else ""
-                      }
-                      print(json.dumps(output, indent=2))
-                      # Write the result to a JSON file in the results directory
-                      test_file_name = sys.argv[1]
-                      result_file_name = os.path.join('results', f"{os.path.splitext(test_file_name)[0]}.json")
-                      os.makedirs(os.path.dirname(result_file_name), exist_ok=True)
-                      with open(result_file_name, 'w') as f:
-                          json.dump(output, f, indent=2)
-                      return result
-
-              if __name__ == "__main__":
-                  test_file = sys.argv[1]
-                  loader = unittest.TestLoader()
-                  suite = loader.discover('.', pattern=test_file)
-                  runner = CustomTestRunner()
-                  runner.run(suite)
-              EOF
-
-              for test_file in test/*; do
-                  file_name=$(basename "$test_file")
-                  echo "Running $file_name"
-                  python3 custom_test_runner.py "$file_name"
-                  echo "========================"
-              done
-              echo "========================"
-              echo "!Finished executing code!"
-
-      
-      - name: Compare and Log test result
+      - name: Run code (ces)
         shell: bash
         run: |
-              # Write a Python script to aggregate results from the ./results folder
-              cat << 'EOF' > aggregate_results.py
-              import os
-              import json
-              import base64
-
-              def main():
-                  results_dir = './results'
-                  total_passed = 0
-                  total_failed = 0
-                  errors = []
-
-                  for file_name in os.listdir(results_dir):
-                      if file_name.endswith('.json'):
-                          with open(os.path.join(results_dir, file_name), 'r') as f:
-                              result = json.load(f)
-                              total_passed += result.get('Passed', 0)
-                              total_failed += result.get('Failed', 0)
-                              if result.get('Error'):
-                                  errors.append(result['Error'])
-
-                  print('======= RESULTS =======')
-                  print("Tests Passed:", total_passed)
-                  print("Tests Failed:", total_failed)
-                  if errors:
-                      errors_text = '\n'.join(errors) if errors else ''
-                      errors_base64 = base64.b64encode(errors_text.encode('utf-8')).decode('utf-8')
-                      print("Test Errors:", errors_base64)
-
-              if __name__ == '__main__':
-                  main()
+              export PATH="$PATH:/github/home/.dotnet/tools"
+              cd cs
+              cat << 'EOF' > Program.cs
+              ${{ env.CODE }}
               EOF
+              echo "Doing build:"
+              echo "========================"
+              dotnet build
+              echo  "======================="
+              cd bin/Debug/net8.0
+              echo "Running code:"
+              echo  "======================="
+              dotnet ConsoleApp.dll
 
-              # Run the Python script to aggregate results
-              python3 aggregate_results.py
               echo "========================"
               echo "!!== RUN COMPLETED ==!!"
-              echo "========================"
+              echo "End devContainer run"
+

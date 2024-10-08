@@ -53,6 +53,7 @@ jobs:
         shell: bash
         run: |
               export PATH="$PATH:/github/home/.dotnet/tools"
+              mkdir cs
               cd cs
               cat << 'EOF' > Program.cs
               ${{ env.CODE }}

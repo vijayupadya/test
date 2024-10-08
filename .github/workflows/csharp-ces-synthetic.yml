@@ -24,6 +24,10 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
+      # Print the Python version
+      - name: Print Python version
+        run: python --version
+
       # Decode the source files and test files and save them to the source/ and test/ folder
       
       - name: Unpack source and test files

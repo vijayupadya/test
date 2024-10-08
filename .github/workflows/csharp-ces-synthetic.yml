@@ -75,7 +75,7 @@ jobs:
         run: |
               mkdir -p cs
 
-              cat << 'EOF' > csTest/csTest.csproj
+              cat << 'EOF' > cs/ConsoleApp.csproj
               <Project Sdk="Microsoft.NET.Sdk">
 
                 <PropertyGroup>
@@ -86,6 +86,16 @@ jobs:
                 </PropertyGroup>
 
               </Project>
+              EOF
+
+              cat << 'EOF' > cs/Program.cs
+              class Program
+              {
+                  public static void Main(string[] args)
+                  {
+                      Console.WriteLine("This is a dummy program.");
+                  }
+              }
               EOF
 
       # Note that this test project file references the main project (ConsoleApp.csproj) from within the ItemGroup/ProjectReference XML element.

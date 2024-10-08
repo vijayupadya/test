@@ -127,7 +127,13 @@ jobs:
               cp -rf source/* cs/ || true
               cp -rf test/* csTest/ || true
               echo "Contents of the cs/ folder:"
+              echo  "======================="
               ls cs/
+              echo "========================"
+              echo "Contents of the csTest/ folder:"
+              echo  "======================="
+              ls csTest/
+              echo  "======================="
 
       - name: Run code (ces)
         shell: bash

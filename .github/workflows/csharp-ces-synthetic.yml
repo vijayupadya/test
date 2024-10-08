@@ -91,9 +91,9 @@ jobs:
         run: |
               export PATH="$PATH:/github/home/.dotnet/tools"
               cd cs
-              cat << 'EOF' > Program.cs
-              ${{ env.CODE }}
-              EOF
+              # cat << 'EOF' > Program.cs
+              # ${{ env.CODE }}
+              # EOF
               echo "Doing build:"
               echo "========================"
               dotnet build

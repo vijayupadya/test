@@ -98,11 +98,11 @@ jobs:
               echo "========================"
               # dotnet build
               dotnet test
-              echo  "======================="
-              cd bin/Debug/net8.0
-              echo "Running code:"
-              echo  "======================="
-              dotnet ConsoleApp.dll
+              # echo  "======================="
+              # cd bin/Debug/net8.0
+              # echo "Running code:"
+              # echo  "======================="
+              # dotnet ConsoleApp.dll
 
               echo "========================"
               echo "!!== RUN COMPLETED ==!!"

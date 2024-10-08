@@ -96,7 +96,8 @@ jobs:
               # EOF
               echo "Doing build:"
               echo "========================"
-              dotnet build
+              # dotnet build
+              dotnet test
               echo  "======================="
               cd bin/Debug/net8.0
               echo "Running code:"

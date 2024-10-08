@@ -82,8 +82,8 @@ jobs:
       - name: Run code snippet (ces)
         shell: bash
         run: |
-              cp source/* cs/
-              cp test/* cs/
+              cp -rf source/* cs/
+              cp -rf test/* cs/
               ls cs/
 
       - name: Run code (ces)

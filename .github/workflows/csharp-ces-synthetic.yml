@@ -76,6 +76,7 @@ jobs:
 
 
 
+      # Note that the test project references the main project (ConsoleApp.csproj) in the ItemGroup/ProjectReference XML element.
       - name: Create Test project
         shell: bash
         run: |
@@ -132,16 +133,10 @@ jobs:
         shell: bash
         run: |
               export PATH="$PATH:/github/home/.dotnet/tools"
-              # cd cs
-              # echo "Doing build:"
-              # echo "========================"
-              # dotnet build
-              # # echo  "======================="
               cd csTest
               echo "Running tests:"
               echo  "======================="
               dotnet test
-
               echo "========================"
               echo "!!== RUN COMPLETED ==!!"
               echo "End devContainer run"

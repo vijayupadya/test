@@ -24,6 +24,8 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
+      # Setting up Python because the default Python installation in the image was having
+      # some issues (couldn't import the built-in module 'json')
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
@@ -74,9 +76,12 @@ jobs:
 
 
 
+      # Copy the source and test files to the cs/ folder
       - name: Run code snippet (ces)
         shell: bash
         run: |
+              cp source/* cs/
+              cp test/* cs/
 
       - name: Run code (ces)
         shell: bash

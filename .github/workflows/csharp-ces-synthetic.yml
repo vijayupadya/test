@@ -76,13 +76,14 @@ jobs:
 
 
 
-      # Copy the source and test files to the cs/ folder
       - name: Run code snippet (ces)
         shell: bash
         run: |
+              # Copy the source and test files to the cs/ folder
               # Note, using `|| true` to prevent the commands from fatally failing if the source/ or test/ folders are empty or don't exist
               cp -rf source/* cs/ || true
               cp -rf test/* cs/ || true
+              echo "Contents of the cs/ folder:"
               ls cs/
 
       - name: Run code (ces)

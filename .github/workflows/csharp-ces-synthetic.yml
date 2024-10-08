@@ -32,12 +32,10 @@ jobs:
         with:
           python-version: '3.12'
 
-      # # Print the `python3` version
-      # - name: Print Python version
+      # - name: Print python3 version
       #   run: python3 --version
       
-      # # Print the `python` version
-      # - name: Print Python version
+      # - name: Print python version
       #   run: python --version
 
       # Decode the source files and test files and save them to the source/ and test/ folder
@@ -85,8 +83,9 @@ jobs:
               # Create the source and test folders only if they don't already exist
               mkdir -p source
               mkdir -p test
-              cp -rf source/* cs/
-              cp -rf test/* cs/
+              # Note, using `|| true` to prevent the commands from failing if the source/ or test/ folders are empty
+              cp -rf source/* cs/ || true
+              cp -rf test/* cs/ || true
               ls cs/
 
       - name: Run code (ces)

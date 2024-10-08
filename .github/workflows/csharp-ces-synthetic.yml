@@ -80,10 +80,7 @@ jobs:
       - name: Run code snippet (ces)
         shell: bash
         run: |
-              # Create the source and test folders only if they don't already exist
-              mkdir -p source
-              mkdir -p test
-              # Note, using `|| true` to prevent the commands from failing if the source/ or test/ folders are empty
+              # Note, using `|| true` to prevent the commands from fatally failing if the source/ or test/ folders are empty or don't exist
               cp -rf source/* cs/ || true
               cp -rf test/* cs/ || true
               ls cs/

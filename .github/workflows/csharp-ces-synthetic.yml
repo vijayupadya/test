@@ -32,12 +32,6 @@ jobs:
         with:
           python-version: '3.12'
 
-      # - name: Print python3 version
-      #   run: python3 --version
-      
-      # - name: Print python version
-      #   run: python --version
-
       # Decode the source files and test files and save them to the source/ and test/ folder
       
       - name: Unpack source and test files
@@ -76,7 +70,25 @@ jobs:
 
 
 
-      # Note that the test project references the main project (ConsoleApp.csproj) in the ItemGroup/ProjectReference XML element.
+      - name: Create Source project
+        shell: bash
+        run: |
+              mkdir -p cs
+
+              cat << 'EOF' > csTest/csTest.csproj
+              <Project Sdk="Microsoft.NET.Sdk">
+
+                <PropertyGroup>
+                  <OutputType>Exe</OutputType>
+                  <TargetFramework>net8.0</TargetFramework>
+                  <ImplicitUsings>enable</ImplicitUsings>
+                  <Nullable>enable</Nullable>
+                </PropertyGroup>
+
+              </Project>
+              EOF
+
+      # Note that this test project file references the main project (ConsoleApp.csproj) from within the ItemGroup/ProjectReference XML element.
       - name: Create Test project
         shell: bash
         run: |

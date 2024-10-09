@@ -17,7 +17,7 @@ on:
         default: ''
         
 jobs:
-  run-devcontainer:
+  run-CodeSnippet:
     runs-on: ubuntu-latest
     container:
       image: mcr.microsoft.com/vscode/devcontainers/go

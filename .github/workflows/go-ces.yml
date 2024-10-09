@@ -47,7 +47,7 @@ jobs:
              echo "=====Custom command:"
              echo "${{ env.CODE }}"
       
-      - name: Run code (ces)
+      - name: Run code snippet (ces)
         shell: bash
         run: |
           cat << 'EOF' > code.go
@@ -75,7 +75,7 @@ jobs:
           fi
 
           echo "========================"
-          echo "!!== RUN COMPLETED ==!!"
+          echo "!Finished executing code!"
           echo "End devContainer run"
       
         

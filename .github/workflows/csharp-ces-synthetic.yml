@@ -143,6 +143,13 @@ jobs:
               </Project>
               EOF
 
+      - name: Clean up files
+        shell: bash
+        run: |
+              # Remove BOM and unexpected characters from files
+              find cs/ -type f -exec sed -i '1s/^\xEF\xBB\xBF//' {} \;
+              find csTest/ -type f -exec sed -i '1s/^\xEF\xBB\xBF//' {} \;
+
       - name: Build code snippet (ces)
         shell: bash
         run: |
@@ -155,7 +162,7 @@ jobs:
               ls cs/
               find cs/ -type f -exec echo {} \; -exec cat {} \;
               echo "========================"
-              echo "Contents of the csTest/ folder"
+              echo "Contents of the csTest/ folder:"
               echo "========================"
               ls csTest/
               find csTest/ -type f -exec echo {} \; -exec cat {} \;
@@ -167,7 +174,6 @@ jobs:
               echo "========================"
               echo "!!== BUILD COMPLETED ==!!"
               cd ..
-
 
       - name: Run code snippet (ces)
         shell: bash

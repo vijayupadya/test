@@ -70,6 +70,8 @@ jobs:
 
 
 
+      # dotnet requires having a csproj file so that we can build and run the code.
+      # We create a dummy file with Main method since otherwise, `dotnet test` will complain about not having an entry point even when the tests don't even call the Main method.
       - name: Create Source project
         shell: bash
         run: |
@@ -141,7 +143,7 @@ jobs:
               </Project>
               EOF
 
-      - name: Run code snippet (ces)
+      - name: Build code snippet (ces)
         shell: bash
         run: |
               # Copy the source and test files to the cs/ folder
@@ -149,23 +151,90 @@ jobs:
               cp -rf source/* cs/ || true
               cp -rf test/* csTest/ || true
               echo "Contents of the cs/ folder:"
-              echo  "======================="
+              echo "========================"
               ls cs/
               echo "========================"
               echo "Contents of the csTest/ folder:"
-              echo  "======================="
+              echo "========================"
               ls csTest/
-              echo  "======================="
+              echo "========================"
+              cd csTest
+              echo "Building project:"
+              echo "========================"
+              dotnet build
+              echo "========================"
+              echo "!!== BUILD COMPLETED ==!!"
+              cd ..
 
-      - name: Run code (ces)
+
+      - name: Run code snippet (ces)
         shell: bash
         run: |
               export PATH="$PATH:/github/home/.dotnet/tools"
               cd csTest
+              mkdir -p ../results
               echo "Running tests:"
-              echo  "======================="
-              dotnet test
+              echo "========================"
+              dotnet test --logger "trx;LogFileName=../results/test_results.trx"
               echo "========================"
               echo "!!== RUN COMPLETED ==!!"
-              echo "End devContainer run"
+              echo "!Finished executing code!"
+              cd ..
 
+      
+      - name: Compare and Log test result
+        shell: bash
+        run: |
+              # Write a Python script to aggregate results from the ./results folder
+              cat << 'EOF' > aggregate_results.py
+              import os
+              import json
+              import base64
+              import xml.etree.ElementTree as ET
+              
+              def parse_trx(file_path):
+                  tree = ET.parse(file_path)
+                  root = tree.getroot()
+                  namespace = {'ns': 'http://microsoft.com/schemas/VisualStudio/TeamTest/2010'}
+                  passed = len(root.findall('.//ns:UnitTestResult[@outcome="Passed"]', namespace))
+                  failed = len(root.findall('.//ns:UnitTestResult[@outcome="Failed"]', namespace))
+                  errors = [e.text for e in root.findall('.//ns:ErrorMessage', namespace)]
+                  return passed, failed, errors
+
+              def main():
+                  results_dir = './results'
+                  total_passed = 0
+                  total_failed = 0
+                  errors = []
+
+                  for file_name in os.listdir(results_dir):
+                      if file_name.endswith('.json'):
+                          with open(os.path.join(results_dir, file_name), 'r') as f:
+                              result = json.load(f)
+                              total_passed += result.get('Passed', 0)
+                              total_failed += result.get('Failed', 0)
+                              if result.get('Error'):
+                                  errors.append(result['Error'] 
+                      elif file_name.endswith('.trx'):
+                          passed, failed, trx_errors = parse_trx(os.path.join(results_dir, file_name))
+                          total_passed += passed
+                          total_failed += failed
+                          errors.extend(trx_errors)
+
+                  print('======= RESULTS =======')
+                  print("Tests Passed:", total_passed)
+                  print("Tests Failed:", total_failed)
+                  if errors:
+                      errors_text = '\n'.join(errors) if errors else ''
+                      errors_base64 = base64.b64encode(errors_text.encode('utf-8')).decode('utf-8')
+                      print("Test Errors:", errors_base64)
+
+              if __name__ == '__main__':
+                  main()
+              EOF
+
+              # Run the Python script to aggregate results
+              python3 aggregate_results.py
+              echo "========================"
+              echo "!!== RUN COMPLETED ==!!"
+              echo "========================"

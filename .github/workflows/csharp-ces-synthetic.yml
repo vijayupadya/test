@@ -155,7 +155,7 @@ jobs:
               ls cs/
               find cs/ -type f -exec echo {} \; -exec cat {} \;
               echo "========================"
-              echo "Contents of the csTest/ folder
+              echo "Contents of the csTest/ folder"
               echo "========================"
               ls csTest/
               find csTest/ -type f -exec echo {} \; -exec cat {} \;

@@ -120,7 +120,6 @@ jobs:
             echo "No patch input provided. Skipping patch application."
           fi         
 
-
     - name: Create prediction file    
       shell: bash
       run: |
@@ -153,28 +152,7 @@ jobs:
              else
              echo "No patch input provided. Skipping patch application."
              fi
-    - name: patching locally
-      if: false
-      shell: bash
-      run: |
-          if [ -n "${{ github.event.inputs.patch }}" ]; then
-            echo "PWD="
-            pwd
-            echo " "
-            echo "ls="
-            ls
-            echo " "
-            echo "Patch input provided. Applying patch..."
-            echo ""${{ github.event.inputs.patch }}"" | base64 --decode | sed 's/\r$//'  > patch.diff
-            echo ""Decoded patch content:""
-            cat patch.diff 
-            echo "" ""
-            echo ""Applying the patch...""
-            git apply --verbose patch.diff
-            echo ""Done""
-          else
-            echo "No patch input provided. Skipping patch application."
-          fi         
+          
     - name: Run custom command on SWE Bench Container (ces)
       shell: bash
       run: |       
@@ -198,7 +176,7 @@ jobs:
          fi    
     - name: Run swebench harness evaluation (ces)
       if: env.RAN_CUSTOM_COMMAND != 'true'      
-      run: |        
+      run: |       
         if [ -n "${{ github.event.inputs.patch }}" ]; then
              predictions_path="prediction.json"
         else
@@ -210,6 +188,7 @@ jobs:
           --instance_ids ${{ github.event.inputs.imageIds }} \
           --run_id ${{ github.event.inputs.run_id }} \
           --dataset_name "princeton-nlp/SWE-bench_Verified"
+          
     - name: Get SWEBench eval test result (ces)
       if: env.RAN_CUSTOM_COMMAND != 'true'
       run: |
@@ -229,6 +208,7 @@ jobs:
           echo "patch.diff content begin"
           echo "----------------"
           cat "$logsDir/patch.diff"
+          echo " "
           echo "----------------"
           echo "patch.diff content end"
         else

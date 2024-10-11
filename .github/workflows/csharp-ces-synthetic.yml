@@ -164,7 +164,7 @@ jobs:
               echo "Building project:"
               echo "========================"
               # Redirecting stdout to stderr, as we'll only parse stderr if build does not complete'
-              dotnet build 1>&2
+              dotnet build >&2
               echo "========================"
               echo "!!== BUILD COMPLETED ==!!"
               cd ..

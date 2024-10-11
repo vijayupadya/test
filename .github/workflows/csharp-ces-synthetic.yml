@@ -163,7 +163,8 @@ jobs:
               cd csTest
               echo "Building project:"
               echo "========================"
-              dotnet build
+              # Redirecting stdout to stderr, as we'll only parse stderr if build does not complete'
+              dotnet build 1>&2
               echo "========================"
               echo "!!== BUILD COMPLETED ==!!"
               cd ..

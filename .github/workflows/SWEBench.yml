@@ -31,8 +31,13 @@ on:
         required: false
         #default: '9802a2c638ac5cb2be7120651835ffb4f82a8d60' # snapshot from 7/27/24
         default: '7336033d65d32ec62f9ce2419aa8f3a757b06ce2' # snapshot from 8/20/24
-        
+      workflow_run_name:
+        required: false
+        default: ''
 
+
+# Note - per the GitHub Actions documentation: "If run-name is omitted or is only whitespace, then the run name is set to event-specific information for the workflow run. For example, for a workflow triggered by a push or pull_request event, it is set as the commit message or the title of the pull request."
+run-name: ${{ inputs.workflow_run_name }}
 permissions:
       id-token: write
       contents: read      

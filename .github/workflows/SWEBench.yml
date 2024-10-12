@@ -37,7 +37,7 @@ on:
 
 
 # Note - per the GitHub Actions documentation: "If run-name is omitted or is only whitespace, then the run name is set to event-specific information for the workflow run. For example, for a workflow triggered by a push or pull_request event, it is set as the commit message or the title of the pull request."
-run-name: ${{ github.event.inputs.workflow_run_name }}
+run-name: ${{ inputs.workflow_run_name }}
 permissions:
       id-token: write
       contents: read      

@@ -241,6 +241,7 @@ jobs:
               log_filepath = "./logs/run_evaluation/${{ github.event.inputs.run_id }}/${{ github.event.inputs.predictions_path }}/${{ github.event.inputs.imageIds }}/test_output.txt"
 
               # Get the evaluation results
+              # Note: This function figures out the specific SWE-Bench repo it's dealing with based on the `imageIds` part of log_filepath (namely, based on the name of the directory where test_output.txt is directly located)
               status_map, success = get_logs_eval(log_filepath)
 
               if success:

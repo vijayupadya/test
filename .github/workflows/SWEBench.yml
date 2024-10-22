@@ -229,28 +229,33 @@ jobs:
         echo "========================="
         cat "$logsDir/test_output.txt"
         echo "========================="
+        
         if [ ${{ github.event.inputs.parse_logs }} == 'true' ]; then
-          echo "Log parsed with repo-specific parser:"
-          echo "========================="
+        
+        echo "Log parsed with repo-specific parser:"
+        echo "========================="
 
-          python3 << 'EOF'
-          import json
-          from swebench.harness.grading import get_logs_eval
+        python3 << 'EOF'
+        import json
+        from swebench.harness.grading import get_logs_eval
 
-          if __name__ == "__main__":
-              log_filepath = "./logs/run_evaluation/${{ github.event.inputs.run_id }}/${{ github.event.inputs.predictions_path }}/${{ github.event.inputs.imageIds }}/test_output.txt"
+        if __name__ == "__main__":
+        log_filepath = "./logs/run_evaluation/${{ github.event.inputs.run_id }}/${{ github.event.inputs.predictions_path }}/${{ github.event.inputs.imageIds }}/test_output.txt"
 
-              # Get the evaluation results
-              # Note: This function figures out the specific SWE-Bench repo it's dealing with based on the `imageIds` part of log_filepath (namely, based on the name of the directory where test_output.txt is directly located)
-              status_map, success = get_logs_eval(log_filepath)
+        # Get the evaluation results
+        # Note: This function figures out the specific SWE-Bench repo it's dealing with based on the `imageIds` part of log_filepath (namely, based on the name of the directory where test_output.txt is directly located)
+        status_map, success = get_logs_eval(log_filepath)
 
-              if success:
-                  # Convert the status map to JSON
-                  json_string = json.dumps(status_map, indent=4)
-                  print(json_string)
-              else:
-                  print("Error: Failed to parse log file")
-          EOF
+        if success:
+            # Convert the status map to JSON
+            json_string = json.dumps(status_map, indent=4)
+            print(json_string)
+        else:
+            print("Error: Failed to parse log file")
+        # Note: end-of-file marker must not be indented relative to bash script base indentation. Otherwise it fails.
+        EOF
+        
         fi
+        
         echo "========================="
         echo "!!== RUN COMPLETED ==!!"

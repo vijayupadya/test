@@ -14,7 +14,7 @@ on:
         default: 'sympy__sympy-20590'
       max_workers:
         required: true
-        default: 1  
+        default: '1'  
       repoName:
         description: Name of the repo
         required: false

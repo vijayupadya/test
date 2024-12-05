@@ -139,19 +139,22 @@ jobs:
              echo "Patch input provided."
              
              # Decode the patch input
-             decoded_patch=$(echo "${{ github.event.inputs.patch }}"  | base64 --decode | sed 's/\r//g' | sed ':a;N;$!ba;s/\n/\\n/g' | sed 's/"/\\"/g')              
+             decoded_patch=$(echo "${{ github.event.inputs.patch }}"  | base64 --decode | sed 's/\r//g' | sed ':a;N;$!ba;s/\n/\\n/g' | sed 's/"/\\"/g')   
+             escaped_json=$(echo "$decoded_patch" | sed 's/\\/\\\\/g')
              # Properly create JSON string using a heredoc without extra spaces         
-             cat <<EOF > prediction.json
+             json_string=$(cat <<EOF
                [
                  {
                    "instance_id": "${{ github.event.inputs.imageIds }}",
-                   "model_patch": "$decoded_patch",
+                   "model_patch": "$escaped_json",
                    "model_name_or_path": "genAI"
                  }
                ]
              EOF
-                          
-             echo "Prediction file content:"
+               )
+      
+             # Write the JSON string to a file
+             echo "$json_string" > prediction.json
              
              # Display the content of prediction.json
              cat prediction.json

@@ -140,6 +140,8 @@ jobs:
              
              # Decode the patch input
              decoded_patch=$(echo "${{ github.event.inputs.patch }}"  | base64 --decode | sed 's/\r//g' | sed ':a;N;$!ba;s/\n/\\n/g' | sed 's/"/\\"/g')   
+             echo "decoded_patch="
+             echo $decoded_patch
              # escaped_json=$(echo "$decoded_patch" | sed 's/\\/\\\\/g')
              # Properly create JSON string using a heredoc without extra spaces
              # Define variables

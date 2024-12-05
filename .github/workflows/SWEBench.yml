@@ -140,19 +140,21 @@ jobs:
              
              # Decode the patch input
              decoded_patch=$(echo "${{ github.event.inputs.patch }}"  | base64 --decode | sed 's/\r//g' | sed ':a;N;$!ba;s/\n/\\n/g' | sed 's/"/\\"/g')   
-             escaped_json=$(echo "$decoded_patch" | sed 's/\\/\\\\/g')
-             # Properly create JSON string using a heredoc without extra spaces         
-             json_string=$(cat <<EOF
-               [
-                 {
-                   "instance_id": "${{ github.event.inputs.imageIds }}",
-                   "model_patch": "$escaped_json",
-                   "model_name_or_path": "genAI"
-                 }
-               ]
-             EOF
-               )
-      
+             # escaped_json=$(echo "$decoded_patch" | sed 's/\\/\\\\/g')
+             # Properly create JSON string using a heredoc without extra spaces
+             # Define variables
+             image_ids="${{ github.event.inputs.imageIds }}"
+             model_name_or_path="genAI"
+             # Construct JSON using jq
+             json_string=$(jq -n --arg instance_id "$image_ids" \
+                   --arg model_patch "$decoded_patch" \
+                   --arg model_name_or_path "$model_name_or_path" \
+                   '{
+                      instance_id: $instance_id,
+                      model_patch: $model_patch,
+                      model_name_or_path: $model_name_or_path
+                    }')
+             
              # Write the JSON string to a file
              echo "$json_string" > prediction.json
              

@@ -1,0 +1,14 @@
+{
+  "plugins": [
+    {
+      "name": "tool-alpha",
+      "description": "Alpha tool plugin with commands",
+      "source": "tool-alpha"
+    },
+    {
+      "name": "tool-beta",
+      "description": "Beta tool plugin with skills",
+      "source": "tool-beta"
+    }
+  ]
+}

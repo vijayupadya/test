@@ -1,0 +1,19 @@
+{
+  "plugins": [
+    {
+      "name": "hello-world",
+      "description": "A simple example plugin with commands, skills, and an agent.",
+      "source": "plugins/hello-world"
+    },
+    {
+      "name": "custom-paths",
+      "description": "Plugin that uses custom component paths in its manifest.",
+      "source": "plugins/custom-paths"
+    },
+    {
+      "name": "mcp-and-hooks",
+      "description": "Plugin demonstrating MCP server definitions and hooks.",
+      "source": "plugins/mcp-and-hooks"
+    }
+  ]
+}

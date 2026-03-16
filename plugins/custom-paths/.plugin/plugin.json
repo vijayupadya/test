@@ -1,0 +1,7 @@
+{
+  "name": "custom-paths",
+  "description": "Plugin that uses custom component paths in its manifest.",
+  "commands": "./my-commands/",
+  "skills": "./my-skills/",
+  "agents": "./my-agents/"
+}

@@ -1,0 +1,15 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "edit|create",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo Post-tool hook triggered"
+          }
+        ]
+      }
+    ]
+  }
+}

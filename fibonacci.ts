@@ -1,4 +1,4 @@
-function fibonacci(n: number): number[] {
+export function fibonacci(n: number): number[] {
   const result: number[] = [];
   for (let i = 0; i < n; i++) {
     if (i === 0) result.push(0);
@@ -8,8 +8,10 @@ function fibonacci(n: number): number[] {
   return result;
 }
 
-// Example: print first 10 Fibonacci numbers
-const n = 10;
-const sequence = fibonacci(n);
-console.log(`Fibonacci sequence of first ${n} numbers:`);
-console.log(sequence.join(", "));
+if (require.main === module) {
+  // Example: print first 10 Fibonacci numbers
+  const n = 10;
+  const sequence = fibonacci(n);
+  console.log(`Fibonacci sequence of first ${n} numbers:`);
+  console.log(sequence.join(", "));
+}

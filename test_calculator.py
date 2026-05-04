@@ -5,6 +5,64 @@ import pytest
 from calculator import add, subtract, multiply, divide, power
 
 
+# ---------------------------------------------------------------------------
+# Example: parametrized tests
+# ---------------------------------------------------------------------------
+
+@pytest.mark.parametrize("a, b, expected", [
+    (1, 2, 3),
+    (-1, -2, -3),
+    (0, 0, 0),
+    (100, -100, 0),
+    (1.5, 2.5, 4.0),
+])
+def test_add_parametrized(a, b, expected):
+    """Example of a parametrized test for add."""
+    assert add(a, b) == pytest.approx(expected)
+
+
+@pytest.mark.parametrize("a, b, expected", [
+    (10, 2, 5.0),
+    (-9, 3, -3.0),
+    (7, 2, 3.5),
+    (1, 4, 0.25),
+])
+def test_divide_parametrized(a, b, expected):
+    """Example of a parametrized test for divide."""
+    assert divide(a, b) == pytest.approx(expected)
+
+
+# ---------------------------------------------------------------------------
+# Example: combining multiple operations
+# ---------------------------------------------------------------------------
+
+def test_combined_operations():
+    """Example showing that operations can be composed correctly."""
+    # (2 + 3) * 4 - 5 == 15
+    result = subtract(multiply(add(2, 3), 4), 5)
+    assert result == 15
+
+
+def test_divide_then_power():
+    """Example: 1 / 2 then squared equals 0.25."""
+    half = divide(1, 2)
+    assert power(half, 2) == pytest.approx(0.25)
+
+
+# ---------------------------------------------------------------------------
+# Example: large numbers
+# ---------------------------------------------------------------------------
+
+def test_add_large_numbers():
+    """Example: addition works correctly for very large integers."""
+    assert add(10**18, 10**18) == 2 * 10**18
+
+
+def test_multiply_large_numbers():
+    """Example: multiplication works correctly for large integers."""
+    assert multiply(10**9, 10**9) == 10**18
+
+
 class TestAddition:
     """Tests for the add function."""
     
